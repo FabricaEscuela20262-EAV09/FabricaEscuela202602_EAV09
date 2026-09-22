@@ -31,3 +31,9 @@ build/
 
 ### VS Code ###
 .vscode/
+
+### Archivos locales ###
+.mcp.json
+.claude/
+HU/userHistory.md
+UnitTest/unitTest.md
