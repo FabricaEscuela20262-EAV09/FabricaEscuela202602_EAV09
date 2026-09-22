@@ -430,16 +430,6 @@ public class AuthService {
                 enlace,
                 tokenEntity.getFechaExpiracion()
         );
-
-        // Se mantiene el log en consola como respaldo durante el desarrollo
-        System.out.println();
-        System.out.println("==================================================");
-        System.out.println("TOKEN DE VERIFICACIÓN (enviado también por correo)");
-        System.out.println("Usuario: " + usuario.getCorreo());
-        System.out.println("Enlace: " + enlace);
-        System.out.println("Expira: " + tokenEntity.getFechaExpiracion());
-        System.out.println("==================================================");
-        System.out.println();
     }
 
     // CREAR TOKEN DE RECUPERACIÓN
