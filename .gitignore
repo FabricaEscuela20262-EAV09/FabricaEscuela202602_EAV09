@@ -37,3 +37,8 @@ build/
 .claude/
 HU/userHistory.md
 UnitTest/unitTest.md
+
+# Credenciales locales (nunca deben commitearse)
+.env
+.env.*
+!.env.example
