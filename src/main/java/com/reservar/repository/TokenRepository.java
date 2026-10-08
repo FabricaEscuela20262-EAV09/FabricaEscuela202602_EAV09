@@ -37,5 +37,10 @@ public interface TokenRepository extends JpaRepository<Token, UUID> {
             TipoToken tipo,
             LocalDateTime fechaActual
     );
+
+    List<Token> findByUsuarioIdUsuarioAndTipoAndFechaUsoIsNull(
+            UUID idUsuario,
+            TipoToken tipo
+    );
 }
 

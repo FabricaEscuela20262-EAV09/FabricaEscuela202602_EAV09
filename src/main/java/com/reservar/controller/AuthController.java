@@ -60,6 +60,19 @@ public class AuthController {
         );
     }
 
+    // REENVIAR VERIFICACIÓN DE CORREO
+    @PostMapping("/verificar/reenviar")
+    public ResponseEntity<String> reenviarVerificacion(
+            @Valid @RequestBody SolicitudRecuperacionRequest request) {
+
+        authService.reenviarVerificacion(request.getCorreo());
+
+        return ResponseEntity.ok(
+                "Si la cuenta existe y tiene verificación pendiente, "
+                        + "se enviarán las instrucciones correspondientes."
+        );
+    }
+
     // LOGIN
     @PostMapping("/login")
     public ResponseEntity<LoginResponse> login(

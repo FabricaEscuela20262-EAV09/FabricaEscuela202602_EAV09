@@ -32,6 +32,7 @@ import java.security.SecureRandom;
 import java.time.LocalDateTime;
 import java.util.HexFormat;
 import java.util.List;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -291,7 +292,7 @@ public class AuthService {
 
         LocalDateTime ahora = LocalDateTime.now();
 
-        if (tokenEntity.getFechaExpiracion().isBefore(ahora)) {
+        if (!tokenEntity.getFechaExpiracion().isAfter(ahora)) {
 
             throw new BusinessException(
                     "TOKEN_EXPIRADO",
@@ -316,6 +317,51 @@ public class AuthService {
         tokenEntity.setFechaUso(ahora);
 
         tokenRepository.save(tokenEntity);
+    }
+
+    // INVALIDAR TOKENS DE VERIFICACIÓN ANTERIORES
+    private void invalidarTokensVerificacion(UUID idUsuario) {
+
+        List<Token> tokens = tokenRepository
+                .findByUsuarioIdUsuarioAndTipoAndFechaUsoIsNull(
+                        idUsuario,
+                        TipoToken.VERIFICACION
+                );
+
+        LocalDateTime ahora = LocalDateTime.now();
+
+        for (Token token : tokens) {
+            token.setFechaUso(ahora);
+        }
+
+        tokenRepository.saveAll(tokens);
+    }
+
+    // REENVIAR VERIFICACIÓN DE CORREO
+    @Transactional
+    public void reenviarVerificacion(String correo) {
+
+        String correoNormalizado = correo.trim();
+
+        Usuario usuario = usuarioRepository
+                .findByCorreo(correoNormalizado)
+                .orElse(null);
+
+        // No se revela si el correo está registrado.
+        if (usuario == null) {
+            return;
+        }
+
+        // Solo las cuentas en estado pendiente necesitan verificación.
+        if (usuario.getEstado() != EstadoUsuario.PENDIENTE) {
+            return;
+        }
+
+        // Invalidar los tokens anteriores de verificación.
+        invalidarTokensVerificacion(usuario.getIdUsuario());
+
+        // Crear y enviar un nuevo token con 24 horas de validez.
+        crearTokenVerificacion(usuario);
     }
 
     // SOLICITAR RECUPERACIÓN DE CONTRASEÑA
