@@ -22,6 +22,11 @@ public interface OfertaServicioRepository
             Pageable pageable
     );
 
+    Page<OfertaServicio> findByProveedorIdProveedor(
+            Long idProveedor,
+            Pageable pageable
+    );
+
     Optional<OfertaServicio> findByIdServicioAndEstado(
             Long idServicio,
             String estado

@@ -11,6 +11,8 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.http.HttpMethod;
+import jakarta.servlet.http.HttpServletResponse;
 
 @Configuration
 @RequiredArgsConstructor
@@ -27,7 +29,6 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(
             HttpSecurity http
     ) throws Exception {
-
         http
                 .csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(session -> session
@@ -40,10 +41,31 @@ public class SecurityConfig {
                                 "/api/auth/verificar/**",
                                 "/api/auth/login",
                                 "/api/auth/recuperacion/**",
-                                "/api/usuario/correo/confirmar/**",
-                                "/api/ofertas/**"
+                                "/api/usuario/correo/confirmar/**"
                         ).permitAll()
+
+                        .requestMatchers("/api/ofertas/mis-ofertas").authenticated()
+
+                        // Consultas públicas de ofertas y disponibilidad.
+                        .requestMatchers(
+                                HttpMethod.GET,
+                                "/api/ofertas",
+                                "/api/ofertas/*",
+                                "/api/ofertas/*/disponibilidad",
+                                "/api/ofertas/*/bloqueos",
+                                "/api/catalogo/**"
+                        ).permitAll()
+
+                        // Cualquier otra operación requiere autenticación.
                         .anyRequest().authenticated()
+                )
+                .exceptionHandling(exceptions -> exceptions
+                        .authenticationEntryPoint((request, response, exception) ->
+                                response.sendError(HttpServletResponse.SC_UNAUTHORIZED)
+                        )
+                        .accessDeniedHandler((request, response, exception) ->
+                                response.sendError(HttpServletResponse.SC_FORBIDDEN)
+                        )
                 )
                 .addFilterBefore(
                         sesionAuthenticationFilter,

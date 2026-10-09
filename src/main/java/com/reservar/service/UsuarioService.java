@@ -53,7 +53,6 @@ public class UsuarioService {
                     .orElse(null);
 
             if (proveedor != null) {
-                tipoServicio = proveedor.getTipoServicio();
                 descripcion = proveedor.getDescripcion();
             }
         }
@@ -111,11 +110,6 @@ public class UsuarioService {
                             "PROVEEDOR_NO_ENCONTRADO",
                             "No se encontraron los datos del proveedor"
                     ));
-
-            if (request.getTipoServicio() != null
-                    && !request.getTipoServicio().isBlank()) {
-                proveedor.setTipoServicio(request.getTipoServicio().trim());
-            }
 
             if (request.getDescripcion() != null) {
                 proveedor.setDescripcion(request.getDescripcion().trim());

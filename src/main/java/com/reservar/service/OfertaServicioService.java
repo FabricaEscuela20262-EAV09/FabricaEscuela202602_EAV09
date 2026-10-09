@@ -185,6 +185,19 @@ public class OfertaServicioService {
                 .map(this::convertirRespuesta);
     }
 
+    @Transactional(readOnly = true)
+    public Page<OfertaServicioResponse> listarHistorialOfertas(Usuario usuarioAutenticado, Pageable pageable) {
+        validarProveedorActivo(usuarioAutenticado);
+        Proveedor proveedor = obtenerProveedor(usuarioAutenticado);
+
+        return ofertaRepository
+                .findByProveedorIdProveedor(
+                        proveedor.getIdProveedor(),
+                        pageable
+                )
+                .map(this::convertirRespuesta);
+    }
+
     private void validarProveedorActivo(Usuario usuario) {
         if (usuario == null) {
             throw new BusinessException(

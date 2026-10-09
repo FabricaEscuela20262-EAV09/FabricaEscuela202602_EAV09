@@ -68,7 +68,6 @@ public class OfertaServicioController {
                     sort = "fechaCreacion",
                     direction = Sort.Direction.DESC
             ) Pageable pageable) {
-        System.out.println(">>> ENTRO A buscarOfertas()");
         return ResponseEntity.ok(
                 ofertaServicio.buscarOfertas(texto, idCategoria, pageable)
         );
@@ -84,6 +83,21 @@ public class OfertaServicioController {
         Usuario usuario = obtenerUsuarioAutenticado();
         return ResponseEntity.ok(
                 ofertaServicio.listarMisOfertas(usuario, pageable)
+        );
+    }
+
+    @GetMapping("/mis-ofertas/historial")
+    public ResponseEntity<Page<OfertaServicioResponse>> listarHistorialOfertas(
+            @PageableDefault(
+                    size = 10,
+                    sort = "fechaCreacion",
+                    direction = Sort.Direction.DESC
+            ) Pageable pageable) {
+
+        Usuario usuario = obtenerUsuarioAutenticado();
+
+        return ResponseEntity.ok(
+                ofertaServicio.listarHistorialOfertas(usuario, pageable)
         );
     }
 
