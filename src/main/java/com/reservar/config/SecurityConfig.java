@@ -35,11 +35,13 @@ public class SecurityConfig {
                 )
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(
+                                "/error",
                                 "/api/auth/registro/**",
                                 "/api/auth/verificar/**",
                                 "/api/auth/login",
                                 "/api/auth/recuperacion/**",
-                                "/api/usuario/correo/confirmar/**"
+                                "/api/usuario/correo/confirmar/**",
+                                "/api/ofertas/**"
                         ).permitAll()
                         .anyRequest().authenticated()
                 )
