@@ -27,6 +27,10 @@ public class DisponibilidadServicioService {
     private static final String ACTIVO = "ACTIVO";
     private static final Set<String> DIAS_VALIDOS = Set.of("LUNES", "MARTES", "MIERCOLES", "JUEVES", "VIERNES", "SABADO", "DOMINGO");
     private static final Set<String> MOTIVOS_VALIDOS = Set.of("RESERVADO", "OTRO");
+    // Un bloqueo de día completo se guarda como 00:00 a 23:59:59.999999,
+    // el máximo que admite una columna TIME de PostgreSQL (microsegundos).
+    private static final LocalTime INICIO_DIA = LocalTime.MIN;
+    private static final LocalTime FIN_DIA = LocalTime.of(23, 59, 59, 999_999_000);
     private final DisponibilidadServicioRepository disponibilidadRepository;
     private final BloqueoDisponibilidadRepository bloqueoRepository;
     private final OfertaServicioRepository ofertaRepository;
@@ -125,7 +129,20 @@ public class DisponibilidadServicioService {
 
         validarProveedorActivo(usuario);
         OfertaServicio oferta = obtenerOfertaPropiaActiva(usuario, idServicio);
-        validarIntervalo(request.getHoraInicio(), request.getHoraFin());
+
+        boolean diaCompleto = request.getHoraInicio() == null
+                && request.getHoraFin() == null;
+        if ((request.getHoraInicio() == null) != (request.getHoraFin() == null)) {
+            throw new BusinessException(
+                    "INTERVALO_HORARIO_INVALIDO",
+                    "Debe indicar hora de inicio y hora de fin, "
+                            + "o ninguna para bloquear el día completo."
+            );
+        }
+        LocalTime horaInicio = diaCompleto ? INICIO_DIA : request.getHoraInicio();
+        LocalTime horaFin = diaCompleto ? FIN_DIA : request.getHoraFin();
+        validarIntervalo(horaInicio, horaFin);
+
         if (request.getFecha().isBefore(LocalDate.now())) {
             throw new BusinessException(
                     "FECHA_BLOQUEO_INVALIDA",
@@ -146,8 +163,8 @@ public class DisponibilidadServicioService {
                         idServicio, request.getFecha());
         for (BloqueoDisponibilidad existente : existentes) {
             if (seTraslapan(
-                    request.getHoraInicio(),
-                    request.getHoraFin(),
+                    horaInicio,
+                    horaFin,
                     existente.getHoraInicio(),
                     existente.getHoraFin())) {
                 throw new BusinessException(
@@ -159,8 +176,8 @@ public class DisponibilidadServicioService {
         BloqueoDisponibilidad bloqueo = new BloqueoDisponibilidad();
         bloqueo.setServicio(oferta);
         bloqueo.setFecha(request.getFecha());
-        bloqueo.setHoraInicio(request.getHoraInicio());
-        bloqueo.setHoraFin(request.getHoraFin());
+        bloqueo.setHoraInicio(horaInicio);
+        bloqueo.setHoraFin(horaFin);
         bloqueo.setMotivo(motivo);
         return convertirBloqueo(bloqueoRepository.save(bloqueo));
     }
@@ -345,6 +362,9 @@ public class DisponibilidadServicioService {
         response.setMotivo(bloqueo.getMotivo());
         response.setHoraInicio(bloqueo.getHoraInicio());
         response.setHoraFin(bloqueo.getHoraFin());
+        response.setDiaCompleto(
+                INICIO_DIA.equals(bloqueo.getHoraInicio())
+                        && FIN_DIA.equals(bloqueo.getHoraFin()));
 
         return response;
     }

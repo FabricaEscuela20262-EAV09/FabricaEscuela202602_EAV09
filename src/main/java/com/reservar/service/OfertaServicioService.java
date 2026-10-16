@@ -1,6 +1,7 @@
 package com.reservar.service;
 
 import com.reservar.dto.servicio.ActualizarOfertaRequest;
+import com.reservar.dto.servicio.BusquedaOfertasResponse;
 import com.reservar.dto.servicio.CrearOfertaRequest;
 import com.reservar.dto.servicio.OfertaServicioResponse;
 import com.reservar.dto.servicio.DisponibilidadResponse;
@@ -36,6 +37,8 @@ public class OfertaServicioService {
     private static final String INACTIVO = "INACTIVO";
     private static final String PRESENCIAL = "PRESENCIAL";
     private static final String REMOTO = "REMOTO";
+    private static final String MENSAJE_SIN_RESULTADOS =
+            "No se encontraron servicios que coincidan con la búsqueda.";
     private final OfertaServicioRepository ofertaRepository;
     private final ProveedorRepository proveedorRepository;
     private final TipoServicioRepository tipoServicioRepository;
@@ -126,8 +129,8 @@ public class OfertaServicioService {
         OfertaServicio oferta = ofertaRepository
                 .findByIdServicioAndEstado(idServicio, ACTIVO)
                 .orElseThrow(() -> new BusinessException(
-                        "OFERTA_NO_ENCONTRADA",
-                        "La oferta no existe o no está activa."
+                        "OFERTA_NO_DISPONIBLE",
+                        "Servicio no disponible. La oferta no existe o no está activa."
                 ));
         validarCatalogoActivo(oferta);
         OfertaServicioResponse response = convertirRespuesta(oferta);
@@ -138,7 +141,7 @@ public class OfertaServicioService {
     }
 
     @Transactional(readOnly = true)
-    public Page<OfertaServicioResponse> buscarOfertas(String texto, Long idCategoria, Pageable pageable) {
+    public BusquedaOfertasResponse buscarOfertas(String texto, Long idCategoria, Pageable pageable) {
 
         String textoNormalizado = (texto == null || texto.isBlank())
                 ? ""
@@ -161,13 +164,19 @@ public class OfertaServicioService {
             }
         }
 
-        return ofertaRepository
+        Page<OfertaServicioResponse> pagina = ofertaRepository
                 .buscarOfertasActivas(
                         textoNormalizado,
                         idCategoria,
                         pageable
                 )
                 .map(this::convertirRespuesta);
+
+        String mensaje = pagina.getTotalElements() == 0
+                ? MENSAJE_SIN_RESULTADOS
+                : null;
+
+        return new BusquedaOfertasResponse(pagina, mensaje);
     }
 
     @Transactional(readOnly = true)
@@ -348,7 +357,7 @@ public class OfertaServicioService {
                 || !ACTIVO.equals(tipo.getCategoria().getEstado())) {
             throw new BusinessException(
                     "OFERTA_NO_DISPONIBLE",
-                    "La oferta no está disponible actualmente."
+                    "Servicio no disponible. La oferta no está disponible actualmente."
             );
         }
     }

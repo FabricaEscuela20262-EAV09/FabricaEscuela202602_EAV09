@@ -18,6 +18,7 @@ public class DisponibilidadResponse {
     // Bloqueo puntual
     private LocalDate fecha;
     private String motivo;
+    private Boolean diaCompleto;
 
     // Comunes a ambos
     private LocalTime horaInicio;

@@ -1,6 +1,7 @@
 package com.reservar.controller;
 
 import com.reservar.dto.servicio.ActualizarOfertaRequest;
+import com.reservar.dto.servicio.BusquedaOfertasResponse;
 import com.reservar.dto.servicio.CrearOfertaRequest;
 import com.reservar.dto.servicio.OfertaServicioResponse;
 import com.reservar.entity.Usuario;
@@ -60,7 +61,7 @@ public class OfertaServicioController {
     }
 
     @GetMapping
-    public ResponseEntity<Page<OfertaServicioResponse>> buscarOfertas(
+    public ResponseEntity<BusquedaOfertasResponse> buscarOfertas(
             @RequestParam(required = false) String texto,
             @RequestParam(required = false) Long idCategoria,
             @PageableDefault(

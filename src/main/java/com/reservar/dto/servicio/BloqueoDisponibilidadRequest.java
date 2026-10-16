@@ -1,7 +1,6 @@
 package com.reservar.dto.servicio;
 
 import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.NotBlank;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -14,12 +13,11 @@ public class BloqueoDisponibilidadRequest {
     @NotNull(message = "Debe ingresar la fecha del bloqueo")
     private LocalDate fecha;
 
-    @NotNull(message = "Debe ingresar la hora de inicio del bloqueo")
+    // Opcionales: si ambas se omiten, se bloquea el día completo.
     private LocalTime horaInicio;
 
-    @NotNull(message = "Debe ingresar la hora de finalización del bloqueo")
     private LocalTime horaFin;
 
-    @NotBlank(message = "Debe ingresar el motivo del bloqueo")
+    // Opcional: si se omite, se registra como OTRO.
     private String motivo;
 }

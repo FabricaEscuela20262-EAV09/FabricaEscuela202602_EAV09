@@ -272,7 +272,7 @@ La autorización de la Épica 2 se aplica en **tres capas**, de la más externa 
 | `/api/ofertas/mis-ofertas/historial` | GET | Proveedor activo | **Todas** las ofertas propias (activas e inactivas), paginadas, más recientes primero |
 | `/api/ofertas/{idServicio}/disponibilidad` | POST | Proveedor activo, dueño | Valida `inicio < fin` y ausencia de traslape |
 | `/api/ofertas/{idServicio}/disponibilidad/{id}` | DELETE | Proveedor activo, dueño | — |
-| `/api/ofertas/{idServicio}/bloqueos` | POST | Proveedor activo, dueño | Bloquea una fecha (o parte de ella); no admite fechas pasadas |
+| `/api/ofertas/{idServicio}/bloqueos` | POST | Proveedor activo, dueño | Bloquea una fecha. Sin `horaInicio` ni `horaFin` bloquea el día completo; `motivo` es opcional (por defecto `OTRO`). No admite fechas pasadas |
 | `/api/ofertas/{idServicio}/bloqueos/{id}` | DELETE | Proveedor activo, dueño | — |
  
 ---
@@ -281,7 +281,7 @@ La autorización de la Épica 2 se aplica en **tres capas**, de la más externa 
 
 - **Centralizado** mediante `@RestControllerAdvice` (`GlobalExceptionHandler`), en lugar de manejo ad-hoc por controller.
 - **Contrato de error único** (`ErrorResponse`): `codigo` (string simbólico, ej. `OFERTA_NO_PROPIA`), `mensaje` (texto para el usuario), `fecha`, y `errores` (lista opcional, usada en errores de validación campo por campo).
-- **`BusinessException`** — excepción de dominio con código simbólico, lanzada por la capa de servicio cuando se viola una regla de negocio. Se traduce a `400 Bad Request` por defecto; tres códigos tienen estado propio: `USUARIO_NO_AUTENTICADO` → **401**, `ROL_NO_AUTORIZADO` y `OFERTA_NO_PROPIA` → **403**.
+- **`BusinessException`** — excepción de dominio con código simbólico, lanzada por la capa de servicio cuando se viola una regla de negocio. Se traduce a `400 Bad Request` por defecto; cuatro grupos de códigos tienen estado propio: `USUARIO_NO_AUTENTICADO` → **401**, `ROL_NO_AUTORIZADO` y `OFERTA_NO_PROPIA` → **403**, `OFERTA_NO_ENCONTRADA` y `OFERTA_NO_DISPONIBLE` → **404**.
 - **Rechazos del filtro de seguridad:** los 401/403 que decide `SecurityConfig` antes de llegar a un controller (por ejemplo, un POST sin sesión) se emiten con `sendError`, por lo que el cuerpo es el estándar de Spring Boot y no el contrato `ErrorResponse` (ver L13).
 - **Errores de validación de Bean Validation** (`MethodArgumentNotValidException`, `ConstraintViolationException`) se interceptan aparte y se listan campo por campo en `errores` (ej. `nombre: Debe ingresar nombre de la oferta`), sin exponer detalles internos de Hibernate/Spring. Esto cubre el criterio de HU-06 de indicar *específicamente* qué campo falló.
 - **Códigos de error de la Épica 2:**
@@ -292,7 +292,7 @@ La autorización de la Épica 2 se aplica en **tres capas**, de la más externa 
   | `PROVEEDOR_NO_ACTIVO` | Cuenta del proveedor no activa/verificada |
   | `PROVEEDOR_NO_ENCONTRADO` | El usuario con rol proveedor no tiene registro en `PROVEEDOR` |
   | `OFERTA_NO_PROPIA` (403) | Se intenta modificar una oferta de otro proveedor |
-  | `OFERTA_NO_ENCONTRADA` / `OFERTA_NO_DISPONIBLE` | Oferta inexistente, inactiva o con catálogo inactivo |
+  | `OFERTA_NO_ENCONTRADA` / `OFERTA_NO_DISPONIBLE` (404) | Oferta inexistente, inactiva o con catálogo inactivo. En el detalle público (HU-10) el mensaje empieza por "Servicio no disponible" |
   | `TIPO_SERVICIO_NO_ENCONTRADO` / `TIPO_SERVICIO_INACTIVO` / `CATEGORIA_INACTIVA` / `CATEGORIA_NO_ENCONTRADA` | Catálogo inválido |
   | `MODALIDAD_INVALIDA` / `UBICACION_REQUERIDA` | Modalidad fuera de {PRESENCIAL, REMOTO} o presencial sin ubicación |
   | `NOMBRE_REQUERIDO` / `DESCRIPCION_REQUERIDA` / `DURACION_INVALIDA` | Campos obligatorios |
@@ -320,7 +320,7 @@ La autorización de la Épica 2 se aplica en **tres capas**, de la más externa 
 9. **Modalidad y ubicación:** `PRESENCIAL` exige ubicación; `REMOTO` no. Se valida en el servicio y en un `CHECK` de base de datos.
 10. **Desactivación lógica:** desactivar una oferta cambia su estado, la saca de búsquedas y del detalle público, y conserva el registro y sus franjas para el historial.
 11. **Sin traslapes de franjas:** dos franjas del mismo servicio y día no pueden solaparse (intervalos semiabiertos `[inicio, fin)`: una franja que termina a las 10:00 y otra que empieza a las 10:00 son válidas). Validación en el servicio + `EXCLUDE` en BD.
-12. **Bloqueos de fechas puntuales:** no se pueden crear en fechas pasadas ni traslaparse entre sí en la misma fecha. No modifican la configuración semanal.
+12. **Bloqueos de fechas puntuales:** no se pueden crear en fechas pasadas ni traslaparse entre sí en la misma fecha. No modifican la configuración semanal. Si se omiten las horas, el bloqueo cubre el día completo y se guarda como 00:00 a 23:59:59.999999 (sin cambios en el esquema).
 13. **Visibilidad de ofertas para el proveedor:** `mis-ofertas` muestra solo las activas; `mis-ofertas/historial` muestra todas las propias, incluidas las desactivadas, para que el proveedor pueda consultar lo que dejó de ofrecer.
 14. **Cálculo de próximas franjas (HU-10):** para el detalle de una oferta se recorren los próximos 7 días (hoy + 6), se toman las franjas semanales del día correspondiente, se recorta la parte ya transcurrida si es hoy, y se **descuentan** los bloqueos de esa fecha (un bloqueo parcial parte la franja en dos). Los resultados se ordenan por fecha y hora.
 ```mermaid
@@ -344,9 +344,9 @@ flowchart TD
 |---|---|---|
 | **HU-06** Publicación de servicios | `POST /api/ofertas` → `OfertaServicioService.crearOferta`; lista predefinida en `GET /api/catalogo/**` | Implementada. La "categoría" se elige indirectamente vía `idTipoServicio` (la categoría se deriva del tipo). Un cliente que intenta publicar recibe 403 |
 | **HU-07** Edición y desactivación | `PUT /api/ofertas/{id}`, `PATCH /api/ofertas/{id}/desactivar` | Implementada. Sin sesión: 401; oferta ajena: 403 |
-| **HU-08** Disponibilidad | `POST/DELETE …/disponibilidad`, `POST/DELETE …/bloqueos` | Implementada. El bloqueo exige rango horario |
-| **HU-09** Búsqueda y filtrado | `GET /api/ofertas?texto=&idCategoria=&page=&size=` | Implementada, paginada. Sin resultados devuelve página vacía con 200 |
-| **HU-10** Detalle y disponibilidad | `GET /api/ofertas/{id}` con `proximasDisponibilidades` | Implementada. La calificación del proveedor no se incluye (depende del Sprint 3) |
+| **HU-08** Disponibilidad | `POST/DELETE …/disponibilidad`, `POST/DELETE …/bloqueos` | Implementada. El bloqueo admite día completo (sin horas) o un rango horario |
+| **HU-09** Búsqueda y filtrado | `GET /api/ofertas?texto=&idCategoria=&page=&size=` | Implementada, paginada. Sin resultados devuelve 200 con página vacía y el campo `mensaje` ("No se encontraron servicios que coincidan con la búsqueda."); con resultados `mensaje` es `null` |
+| **HU-10** Detalle y disponibilidad | `GET /api/ofertas/{id}` con `proximasDisponibilidades` | Implementada. Servicio inexistente o inactivo responde 404 (`OFERTA_NO_DISPONIBLE`) con mensaje "Servicio no disponible…". La calificación del proveedor no se incluye (depende del Sprint 3) |
 
 ### Requisitos no funcionales de la épica
 

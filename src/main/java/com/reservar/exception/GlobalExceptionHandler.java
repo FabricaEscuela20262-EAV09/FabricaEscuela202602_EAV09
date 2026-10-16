@@ -20,6 +20,8 @@ public class GlobalExceptionHandler {
             case "USUARIO_NO_AUTENTICADO" -> HttpStatus.UNAUTHORIZED;
             case "ROL_NO_AUTORIZADO", "OFERTA_NO_PROPIA" ->
                     HttpStatus.FORBIDDEN;
+            case "OFERTA_NO_ENCONTRADA", "OFERTA_NO_DISPONIBLE" ->
+                    HttpStatus.NOT_FOUND;
             default -> HttpStatus.BAD_REQUEST;
         };
 
