@@ -1,0 +1,23 @@
+$kind: http-request
+description: |-
+  **Qué decir:** Los intervalos son semiabiertos: una franja que empieza justo cuando otra termina no se traslapa.
+
+  **Qué esperar:** 201 (12:00 a 13:00 después de 09:00 a 12:00).
+url: "{{base}}/api/ofertas/{{idServicio}}/disponibilidad"
+method: POST
+headers:
+  Authorization: Bearer {{tokenProv}}
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+      "diaSemana": "{{diaA}}",
+      "horaInicio": "12:00:00",
+      "horaFin": "13:00:00"
+    }
+scripts:
+  - type: afterResponse
+    code: pm.test('Responde 201', () => pm.response.to.have.status(201));
+    language: text/javascript
+order: 6000

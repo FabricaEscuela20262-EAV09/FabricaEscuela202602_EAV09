@@ -1,0 +1,23 @@
+$kind: http-request
+description: |-
+  **Qué decir:** Segunda franja, en el día B, de 10:00 a 14:00.
+
+  **Qué esperar:** 201.
+url: "{{base}}/api/ofertas/{{idServicio}}/disponibilidad"
+method: POST
+headers:
+  Authorization: Bearer {{tokenProv}}
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+      "diaSemana": "{{diaB}}",
+      "horaInicio": "10:00:00",
+      "horaFin": "14:00:00"
+    }
+scripts:
+  - type: afterResponse
+    code: pm.test('Responde 201', () => pm.response.to.have.status(201));
+    language: text/javascript
+order: 2000

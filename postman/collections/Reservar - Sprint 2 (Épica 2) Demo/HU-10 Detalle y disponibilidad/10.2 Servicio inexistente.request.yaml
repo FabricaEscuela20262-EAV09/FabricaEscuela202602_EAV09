@@ -1,0 +1,15 @@
+$kind: http-request
+description: |-
+  **Qué decir:** Un servicio que no existe o está inactivo da un mensaje claro, no un error genérico de servidor.
+
+  **Qué esperar:** 404, `OFERTA_NO_DISPONIBLE`, con mensaje que empieza por "Servicio no disponible".
+url: "{{base}}/api/ofertas/9999"
+method: GET
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('Responde 404', () => pm.response.to.have.status(404));
+      pm.test('codigo = OFERTA_NO_DISPONIBLE', () => pm.expect(pm.response.json().codigo).to.eql('OFERTA_NO_DISPONIBLE'));
+      pm.test('Mensaje claro', () => pm.expect(pm.response.json().mensaje.startsWith('Servicio no disponible')).to.eql(true));
+    language: text/javascript
+order: 2000

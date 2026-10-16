@@ -1,0 +1,3 @@
+$kind: collection
+description: El proveedor mantiene actualizada su oferta. La desactivación está al final de la colección para no inutilizar la oferta antes de tiempo.
+order: 3000

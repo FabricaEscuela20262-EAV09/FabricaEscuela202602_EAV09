@@ -1,0 +1,16 @@
+$kind: http-request
+description: |-
+  **Qué decir:** Filtrar por una categoría que no existe se rechaza.
+
+  **Qué esperar:** 400, `CATEGORIA_NO_ENCONTRADA`.
+url: "{{base}}/api/ofertas?idCategoria=999"
+method: GET
+queryParams:
+  idCategoria: "999"
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('Responde 400', () => pm.response.to.have.status(400));
+      pm.test('codigo = CATEGORIA_NO_ENCONTRADA', () => pm.expect(pm.response.json().codigo).to.eql('CATEGORIA_NO_ENCONTRADA'));
+    language: text/javascript
+order: 5000

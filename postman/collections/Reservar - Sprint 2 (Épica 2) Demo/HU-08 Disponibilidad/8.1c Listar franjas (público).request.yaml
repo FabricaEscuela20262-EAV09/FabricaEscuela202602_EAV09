@@ -1,0 +1,14 @@
+$kind: http-request
+description: |-
+  **Qué decir:** Cualquiera puede consultar la configuración semanal de una oferta activa.
+
+  **Qué esperar:** 200 con al menos las dos franjas creadas.
+url: "{{base}}/api/ofertas/{{idServicio}}/disponibilidad"
+method: GET
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('Responde 200', () => pm.response.to.have.status(200));
+      pm.test('Al menos 2 franjas', () => pm.expect(pm.response.json().length).to.be.at.least(2));
+    language: text/javascript
+order: 3000

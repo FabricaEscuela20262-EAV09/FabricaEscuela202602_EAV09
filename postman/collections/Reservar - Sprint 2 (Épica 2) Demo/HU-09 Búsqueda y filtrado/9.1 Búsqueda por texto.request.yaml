@@ -1,0 +1,19 @@
+$kind: http-request
+description: |-
+  **Qué decir:** El cliente busca por palabra clave; coincide con nombre o descripción. Solo aparecen servicios activos y los resultados vienen paginados.
+
+  **Qué esperar:** 200 con una `Page`; incluye la oferta de prueba y todos los resultados en estado ACTIVO.
+url: "{{base}}/api/ofertas?texto=prueba"
+method: GET
+queryParams:
+  texto: prueba
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('Responde 200', () => pm.response.to.have.status(200));
+      const j = pm.response.json();
+      pm.test('Todos ACTIVO', () => pm.expect(j.content.every(o => o.estado === 'ACTIVO')).to.eql(true));
+      pm.test('Con resultados no hay mensaje', () => pm.expect(j.mensaje).to.eql(null));
+      pm.test('Incluye la oferta de prueba', () => pm.expect(j.content.map(o => o.idServicio)).to.include(Number(pm.collectionVariables.get('idServicio'))));
+    language: text/javascript
+order: 1000

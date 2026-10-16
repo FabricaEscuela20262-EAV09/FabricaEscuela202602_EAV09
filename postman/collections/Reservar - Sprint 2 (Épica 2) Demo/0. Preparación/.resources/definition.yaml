@@ -1,0 +1,3 @@
+$kind: collection
+description: Se ejecuta una vez antes de grabar o como introducción. Deja guardados el token del proveedor y el tipo de servicio que se usará.
+order: 1000

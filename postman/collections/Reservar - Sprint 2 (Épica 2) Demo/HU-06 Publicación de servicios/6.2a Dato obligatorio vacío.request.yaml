@@ -1,0 +1,31 @@
+$kind: http-request
+description: |-
+  **Qué decir:** Si falta un campo obligatorio, el sistema rechaza la publicación y dice específicamente cuál falló.
+
+  **Qué esperar:** 400, `DATOS_INVALIDOS`, con `errores` que incluye `nombre: Debe ingresar nombre de la oferta`.
+
+  **Nota:** La validación de campos va antes de la lógica de negocio; por eso cada error se prueba por separado.
+url: "{{base}}/api/ofertas"
+method: POST
+headers:
+  Authorization: Bearer {{tokenProv}}
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+      "idTipoServicio": {{idTipoServicio}},
+      "nombre": "",
+      "descripcion": "Corte clasico para la demo",
+      "duracionMinutos": 30,
+      "modalidad": "PRESENCIAL",
+      "ubicacion": "Medellin"
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('Responde 400', () => pm.response.to.have.status(400));
+      pm.test('codigo = DATOS_INVALIDOS', () => pm.expect(pm.response.json().codigo).to.eql('DATOS_INVALIDOS'));
+      pm.test('Indica el campo nombre', () => pm.expect(pm.response.json().errores.join(' ')).to.include('nombre'));
+    language: text/javascript
+order: 2000

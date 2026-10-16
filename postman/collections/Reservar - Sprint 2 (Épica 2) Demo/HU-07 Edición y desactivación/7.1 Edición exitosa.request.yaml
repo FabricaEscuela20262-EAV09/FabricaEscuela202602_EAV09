@@ -1,0 +1,30 @@
+$kind: http-request
+description: |-
+  **Qué decir:** El proveedor edita nombre, descripción, tipo, duración y ubicación de su propia oferta. Los cambios se reflejan de inmediato.
+
+  **Qué esperar:** 200 con `nombre: Corte de prueba (editado)` y `duracionMinutos: 45`.
+url: "{{base}}/api/ofertas/{{idServicio}}"
+method: PUT
+headers:
+  Authorization: Bearer {{tokenProv}}
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+      "idTipoServicio": {{idTipoServicio}},
+      "nombre": "Corte de prueba (editado)",
+      "descripcion": "Descripcion actualizada",
+      "duracionMinutos": 45,
+      "modalidad": "PRESENCIAL",
+      "ubicacion": "Medellin"
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('Responde 200', () => pm.response.to.have.status(200));
+      const j = pm.response.json();
+      pm.test('Nombre actualizado', () => pm.expect(j.nombre).to.eql('Corte de prueba (editado)'));
+      pm.test('Duracion actualizada', () => pm.expect(j.duracionMinutos).to.eql(45));
+    language: text/javascript
+order: 1000

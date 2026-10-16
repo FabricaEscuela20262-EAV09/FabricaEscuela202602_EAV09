@@ -1,0 +1,55 @@
+$kind: collection
+description: |-
+  Demo de la Épica 2 (Gestión de Servicios y Disponibilidad, Sprint 2) del proyecto Reservar.
+
+  **Antes de empezar**
+  1. Ejecuten antes en Neon el script `neon/01-preparar-demo.sql`: crea los usuarios demo (contraseña Demo#2026) que esta colección trae ya cargados en sus variables.
+  2. Revisen en la pestaña *Variables* que `base` apunte a donde corre la app (por defecto http://localhost:8080). Las pruebas que necesitan al cliente o al segundo proveedor se omiten solas si esas variables se vacían.
+  3. Ejecuten las carpetas en orden. Cada petición trae en su descripción qué decir y qué esperar, y un script de pruebas que marca si el resultado coincide.
+
+  Las fechas y los días de la semana se calculan automáticamente a partir de la fecha actual. Los tokens y los ids se guardan solos en las variables.
+
+  **Limitaciones**
+  - Los usuarios demo se crean por SQL (no por el flujo de registro), para no depender del correo.
+  - Las fechas de la colección se calculan con el reloj de Postman; la app calcula "hoy" con la hora de su servidor.
+variables:
+  base: http://localhost:8080
+  correoProveedor: proveedor.demo@reservar.test
+  contrasenaProveedor: Demo#2026
+  correoCliente: cliente.demo@reservar.test
+  contrasenaCliente: Demo#2026
+  correoOtroProveedor: proveedor.demo2@reservar.test
+  contrasenaOtroProveedor: Demo#2026
+  correoPendiente: proveedor.pendiente@reservar.test
+  tokenProv: ""
+  tokenCli: ""
+  tokenOtroProv: ""
+  idTipoServicio: ""
+  idCategoria: ""
+  idServicio: ""
+  fechaA: ""
+  diaA: ""
+  fechaB: ""
+  diaB: ""
+  fechaPasada: ""
+  fechaUnaHora: ""
+  fechaMotivo: ""
+  fechaDesde: ""
+  fechaHasta: ""
+scripts:
+  - type: http:beforeRequest
+    code: |-
+      const cv = pm.collectionVariables;
+      const pad = n => String(n).padStart(2, '0');
+      const fmt = d => d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+      const add = n => { const d = new Date(); d.setDate(d.getDate() + n); return d; };
+      const dias = ['DOMINGO', 'LUNES', 'MARTES', 'MIERCOLES', 'JUEVES', 'VIERNES', 'SABADO'];
+      const a = add(1), b = add(2);
+      cv.set('fechaA', fmt(a)); cv.set('diaA', dias[a.getDay()]);
+      cv.set('fechaB', fmt(b)); cv.set('diaB', dias[b.getDay()]);
+      cv.set('fechaPasada', fmt(add(-5)));
+      cv.set('fechaUnaHora', fmt(add(3)));
+      cv.set('fechaMotivo', fmt(add(4)));
+      cv.set('fechaDesde', fmt(add(0)));
+      cv.set('fechaHasta', fmt(add(6)));
+    language: text/javascript

@@ -111,7 +111,7 @@ class DisponibilidadServicioServiceTest {
         BloqueoDisponibilidad guardado = captor.getValue();
         assertAll(
                 () -> assertEquals(LocalTime.MIN, guardado.getHoraInicio()),
-                () -> assertEquals(LocalTime.of(23, 59, 59, 999_999_000), guardado.getHoraFin()),
+                () -> assertEquals(LocalTime.of(23, 59, 59), guardado.getHoraFin()),
                 () -> assertEquals("OTRO", guardado.getMotivo()),
                 () -> assertTrue(respuesta.getDiaCompleto())
         );

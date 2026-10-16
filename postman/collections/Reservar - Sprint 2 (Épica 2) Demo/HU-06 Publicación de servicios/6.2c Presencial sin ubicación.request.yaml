@@ -1,0 +1,27 @@
+$kind: http-request
+description: |-
+  **Qué decir:** La ubicación es texto libre, pero es obligatoria si el servicio es presencial.
+
+  **Qué esperar:** 400, `UBICACION_REQUERIDA`.
+url: "{{base}}/api/ofertas"
+method: POST
+headers:
+  Authorization: Bearer {{tokenProv}}
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+      "idTipoServicio": {{idTipoServicio}},
+      "nombre": "Sin ubicacion",
+      "descripcion": "Prueba",
+      "duracionMinutos": 30,
+      "modalidad": "PRESENCIAL"
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('Responde 400', () => pm.response.to.have.status(400));
+      pm.test('codigo = UBICACION_REQUERIDA', () => pm.expect(pm.response.json().codigo).to.eql('UBICACION_REQUERIDA'));
+    language: text/javascript
+order: 4000

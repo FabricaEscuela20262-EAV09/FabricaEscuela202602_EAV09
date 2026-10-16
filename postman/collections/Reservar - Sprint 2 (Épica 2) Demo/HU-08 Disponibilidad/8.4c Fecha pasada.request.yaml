@@ -1,0 +1,23 @@
+$kind: http-request
+description: |-
+  **Qué decir:** No se pueden crear bloqueos en fechas pasadas.
+
+  **Qué esperar:** 400, `FECHA_BLOQUEO_INVALIDA`.
+url: "{{base}}/api/ofertas/{{idServicio}}/bloqueos"
+method: POST
+headers:
+  Authorization: Bearer {{tokenProv}}
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+      "fecha": "{{fechaPasada}}"
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('Responde 400', () => pm.response.to.have.status(400));
+      pm.test('codigo = FECHA_BLOQUEO_INVALIDA', () => pm.expect(pm.response.json().codigo).to.eql('FECHA_BLOQUEO_INVALIDA'));
+    language: text/javascript
+order: 15000

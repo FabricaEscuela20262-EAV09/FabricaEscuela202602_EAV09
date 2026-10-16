@@ -1,0 +1,22 @@
+$kind: http-request
+description: |-
+  **Qué decir:** El cliente ve nombre, descripción, categoría, duración, ubicación y modalidad, el nombre del proveedor y las franjas disponibles de los próximos 7 días. Se calculan a partir de la disponibilidad semanal y excluyen lo bloqueado: el día A (bloqueado completo) no aparece y el día B sale partido en dos.
+
+  **Qué esperar:** 200 con `proximasDisponibilidades`: sin fecha A, y para la fecha B las franjas 10:00-11:00 y 12:00-14:00.
+
+  **Nota:** La calificación del proveedor no se incluye porque depende del Sprint 3.
+url: "{{base}}/api/ofertas/{{idServicio}}"
+method: GET
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('Responde 200', () => pm.response.to.have.status(200));
+      const j = pm.response.json();
+      const f = j.proximasDisponibilidades;
+      const fa = pm.collectionVariables.get('fechaA');
+      const fb = pm.collectionVariables.get('fechaB');
+      pm.test('Trae datos basicos y proveedor', () => { pm.expect(j.nombre).to.be.a('string'); pm.expect(j.nombreProveedor).to.be.a('string'); pm.expect(j.nombreCategoria).to.be.a('string'); });
+      pm.test('Dia A bloqueado no aparece', () => pm.expect(f.filter(x => x.fecha === fa)).to.have.lengthOf(0));
+      pm.test('Dia B partido por el bloqueo parcial', () => { const d = f.filter(x => x.fecha === fb).map(x => x.horaInicio.substring(0, 5) + '-' + x.horaFin.substring(0, 5)); pm.expect(d).to.eql(['10:00-11:00', '12:00-14:00']); });
+    language: text/javascript
+order: 1000

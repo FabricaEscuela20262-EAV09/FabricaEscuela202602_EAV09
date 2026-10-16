@@ -1,0 +1,17 @@
+$kind: http-request
+description: |-
+  **Qué decir:** El proveedor sigue viendo la oferta desactivada en su historial.
+
+  **Qué esperar:** 200 y la oferta aparece con `estado: INACTIVO`.
+url: "{{base}}/api/ofertas/mis-ofertas/historial"
+method: GET
+headers:
+  Authorization: Bearer {{tokenProv}}
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('Responde 200', () => pm.response.to.have.status(200));
+      const id = Number(pm.collectionVariables.get('idServicio'));
+      pm.test('Esta en el historial como INACTIVO', () => { const o = pm.response.json().content.find(x => x.idServicio === id); pm.expect(o).to.exist; pm.expect(o.estado).to.eql('INACTIVO'); });
+    language: text/javascript
+order: 4000

@@ -1,0 +1,17 @@
+$kind: http-request
+description: |-
+  **Qué decir:** La fecha final no puede ser anterior a la inicial.
+
+  **Qué esperar:** 400, `RANGO_FECHAS_INVALIDO`.
+url: "{{base}}/api/ofertas/{{idServicio}}/bloqueos?fechaInicio={{fechaHasta}}&fechaFin={{fechaDesde}}"
+method: GET
+queryParams:
+  fechaInicio: "{{fechaHasta}}"
+  fechaFin: "{{fechaDesde}}"
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('Responde 400', () => pm.response.to.have.status(400));
+      pm.test('codigo = RANGO_FECHAS_INVALIDO', () => pm.expect(pm.response.json().codigo).to.eql('RANGO_FECHAS_INVALIDO'));
+    language: text/javascript
+order: 18000

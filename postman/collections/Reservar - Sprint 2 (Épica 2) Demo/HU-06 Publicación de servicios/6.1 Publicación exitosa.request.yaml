@@ -1,0 +1,31 @@
+$kind: http-request
+description: |-
+  **Qué decir:** El proveedor ingresa nombre, descripción, tipo de servicio (de la lista del catálogo, de donde se deriva la categoría), duración y modalidad con ubicación. El servicio queda activo y visible de inmediato.
+
+  **Qué esperar:** 201 con `estado: ACTIVO` e `idServicio`, que se guarda en la variable `idServicio`.
+url: "{{base}}/api/ofertas"
+method: POST
+headers:
+  Authorization: Bearer {{tokenProv}}
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+      "idTipoServicio": {{idTipoServicio}},
+      "nombre": "Corte de prueba Sprint 2",
+      "descripcion": "Corte clasico para la demo",
+      "duracionMinutos": 30,
+      "modalidad": "PRESENCIAL",
+      "ubicacion": "Medellin"
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('Responde 201', () => pm.response.to.have.status(201));
+      const j = pm.response.json();
+      pm.test('Queda ACTIVO', () => pm.expect(j.estado).to.eql('ACTIVO'));
+      pm.test('Trae idServicio', () => pm.expect(j.idServicio).to.be.a('number'));
+      pm.collectionVariables.set('idServicio', j.idServicio);
+    language: text/javascript
+order: 1000

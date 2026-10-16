@@ -1,0 +1,14 @@
+$kind: http-request
+description: |-
+  **Qué decir:** Tampoco se ve el detalle público.
+
+  **Qué esperar:** 404, `OFERTA_NO_DISPONIBLE`, mensaje "Servicio no disponible...".
+url: "{{base}}/api/ofertas/{{idServicio}}"
+method: GET
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('Responde 404', () => pm.response.to.have.status(404));
+      pm.test('codigo = OFERTA_NO_DISPONIBLE', () => pm.expect(pm.response.json().codigo).to.eql('OFERTA_NO_DISPONIBLE'));
+    language: text/javascript
+order: 3000

@@ -1,0 +1,22 @@
+$kind: http-request
+description: |-
+  **Qué decir:** Sin token no se modifica la disponibilidad.
+
+  **Qué esperar:** 401.
+url: "{{base}}/api/ofertas/{{idServicio}}/disponibilidad"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+      "diaSemana": "{{diaA}}",
+      "horaInicio": "16:00:00",
+      "horaFin": "17:00:00"
+    }
+scripts:
+  - type: afterResponse
+    code: pm.test('Responde 401', () => pm.response.to.have.status(401));
+    language: text/javascript
+order: 8000

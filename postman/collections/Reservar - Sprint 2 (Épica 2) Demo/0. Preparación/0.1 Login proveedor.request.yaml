@@ -1,0 +1,26 @@
+$kind: http-request
+description: |-
+  **Qué decir:** Iniciamos sesión como proveedor. El sistema usa un token de sesión opaco; lo enviaremos en el encabezado Authorization de las peticiones siguientes.
+
+  **Qué esperar:** 200 con `token`, `rol: PROVEEDOR` y `estado: ACTIVO`. El token se guarda solo en la variable `tokenProv`.
+
+  **Nota:** Requiere llenar `correoProveedor` y `contrasenaProveedor` en las variables de la colección.
+url: "{{base}}/api/auth/login"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+      "correo": "{{correoProveedor}}",
+      "contrasena": "{{contrasenaProveedor}}"
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('Responde 200', () => pm.response.to.have.status(200));
+      pm.test('Rol proveedor y cuenta activa', () => { const j = pm.response.json(); pm.expect(j.rol).to.eql('PROVEEDOR'); pm.expect(j.estado).to.eql('ACTIVO'); });
+      pm.collectionVariables.set('tokenProv', pm.response.json().token);
+    language: text/javascript
+order: 1000
