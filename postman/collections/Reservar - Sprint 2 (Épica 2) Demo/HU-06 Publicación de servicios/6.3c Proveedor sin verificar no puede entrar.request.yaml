@@ -1,0 +1,25 @@
+$kind: http-request
+description: |-
+  **Qué decir:** Un proveedor con cuenta sin verificar no puede operar: el sistema lo detiene ya en el inicio de sesión, así que nunca obtiene token para publicar.
+
+  **Qué esperar:** 400, `CUENTA_NO_VERIFICADA`.
+
+  **Nota:** Es incluso más estricto que el criterio: el código `PROVEEDOR_NO_ACTIVO` del servicio de ofertas queda como segunda barrera (por ejemplo, una cuenta desactivada con sesión abierta). Hagan esta prueba una sola vez: cada intento fallido suma al contador de bloqueo de la cuenta.
+url: "{{base}}/api/auth/login"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+      "correo": "{{correoPendiente}}",
+      "contrasena": "{{contrasenaCliente}}"
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('Responde 400', () => pm.response.to.have.status(400));
+      pm.test('codigo = CUENTA_NO_VERIFICADA', () => pm.expect(pm.response.json().codigo).to.eql('CUENTA_NO_VERIFICADA'));
+    language: text/javascript
+order: 7000

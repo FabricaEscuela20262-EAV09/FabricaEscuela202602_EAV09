@@ -1,0 +1,23 @@
+$kind: http-request
+description: |-
+  **Qué decir:** Login del cliente ya verificado.
+
+  **Qué esperar:** 200 con `rol: CLIENTE`. El token se guarda en `tokenCli`.
+url: "{{base}}/api/auth/login"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+      "correo": "{{correoCliente}}",
+      "contrasena": "{{contrasenaCliente}}"
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      if (pm.response.code === 200) { pm.collectionVariables.set('tokenCli', pm.response.json().token); }
+      pm.test('Login cliente', () => pm.response.to.have.status(200));
+    language: text/javascript
+order: 3000

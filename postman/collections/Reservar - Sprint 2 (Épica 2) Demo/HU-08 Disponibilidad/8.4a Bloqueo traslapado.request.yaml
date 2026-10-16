@@ -1,0 +1,23 @@
+$kind: http-request
+description: |-
+  **Qué decir:** No se puede bloquear una fecha que ya está bloqueada por completo.
+
+  **Qué esperar:** 400, `BLOQUEO_TRASLAPADO`.
+url: "{{base}}/api/ofertas/{{idServicio}}/bloqueos"
+method: POST
+headers:
+  Authorization: Bearer {{tokenProv}}
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+      "fecha": "{{fechaA}}"
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('Responde 400', () => pm.response.to.have.status(400));
+      pm.test('codigo = BLOQUEO_TRASLAPADO', () => pm.expect(pm.response.json().codigo).to.eql('BLOQUEO_TRASLAPADO'));
+    language: text/javascript
+order: 13000

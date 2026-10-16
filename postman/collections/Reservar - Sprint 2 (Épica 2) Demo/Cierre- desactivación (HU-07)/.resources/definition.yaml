@@ -1,0 +1,4 @@
+$kind: collection
+name: "Cierre: desactivación (HU-07)"
+description: "Se ejecuta al final porque la oferta de prueba deja de ser operable. La desactivación es lógica: conserva el historial que el Sprint 3 asociará a las reservas."
+order: 7000

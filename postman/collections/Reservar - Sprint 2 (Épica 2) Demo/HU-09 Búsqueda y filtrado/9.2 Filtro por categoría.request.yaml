@@ -1,0 +1,17 @@
+$kind: http-request
+description: |-
+  **Qué decir:** Se puede filtrar por categoría.
+
+  **Qué esperar:** 200; todos los resultados pertenecen a la categoría elegida.
+url: "{{base}}/api/ofertas?idCategoria={{idCategoria}}"
+method: GET
+queryParams:
+  idCategoria: "{{idCategoria}}"
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('Responde 200', () => pm.response.to.have.status(200));
+      const id = Number(pm.collectionVariables.get('idCategoria'));
+      pm.test('Todos de la categoria', () => pm.expect(pm.response.json().content.every(o => o.idCategoria === id)).to.eql(true));
+    language: text/javascript
+order: 2000

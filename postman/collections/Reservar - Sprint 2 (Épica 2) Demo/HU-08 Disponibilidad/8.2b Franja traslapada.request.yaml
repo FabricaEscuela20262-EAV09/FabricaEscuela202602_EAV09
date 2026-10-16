@@ -1,0 +1,25 @@
+$kind: http-request
+description: |-
+  **Qué decir:** Las franjas del mismo servicio no pueden traslaparse. Se valida en el servidor, y la base tiene una restricción como segunda barrera ante concurrencia.
+
+  **Qué esperar:** 400, `DISPONIBILIDAD_TRASLAPADA` (11:00 a 13:00 choca con 09:00 a 12:00).
+url: "{{base}}/api/ofertas/{{idServicio}}/disponibilidad"
+method: POST
+headers:
+  Authorization: Bearer {{tokenProv}}
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+      "diaSemana": "{{diaA}}",
+      "horaInicio": "11:00:00",
+      "horaFin": "13:00:00"
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('Responde 400', () => pm.response.to.have.status(400));
+      pm.test('codigo = DISPONIBILIDAD_TRASLAPADA', () => pm.expect(pm.response.json().codigo).to.eql('DISPONIBILIDAD_TRASLAPADA'));
+    language: text/javascript
+order: 5000

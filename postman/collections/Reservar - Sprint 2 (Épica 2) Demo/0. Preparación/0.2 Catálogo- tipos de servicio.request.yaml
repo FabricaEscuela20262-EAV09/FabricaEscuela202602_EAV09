@@ -1,0 +1,19 @@
+$kind: http-request
+name: "0.2 Catálogo: tipos de servicio"
+description: |-
+  **Qué decir:** El catálogo de categorías y tipos es la lista predefinida de la HU-06. Es público, no necesita token.
+
+  **Qué esperar:** 200 con una lista de tipos (`idTipoServicio`, `idCategoria`, `categoria`, `nombre`). Se guarda el primero (o Barbería si existe) en `idTipoServicio` e `idCategoria`.
+url: "{{base}}/api/catalogo/tipos-servicio"
+method: GET
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('Responde 200', () => pm.response.to.have.status(200));
+      const tipos = pm.response.json();
+      pm.test('Hay tipos de servicio', () => pm.expect(tipos.length).to.be.above(0));
+      const t = tipos.find(x => /barber/i.test(x.nombre)) || tipos[0];
+      pm.collectionVariables.set('idTipoServicio', t.idTipoServicio);
+      pm.collectionVariables.set('idCategoria', t.idCategoria);
+    language: text/javascript
+order: 2000

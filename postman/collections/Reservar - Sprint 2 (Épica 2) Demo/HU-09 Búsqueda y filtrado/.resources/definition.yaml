@@ -1,0 +1,3 @@
+$kind: collection
+description: Consultas públicas, sin token. Solo ofertas activas y paginadas.
+order: 5000

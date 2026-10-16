@@ -1,0 +1,26 @@
+$kind: http-request
+description: |-
+  **Qué decir:** El proveedor marca una fecha puntual como no disponible, por ejemplo un festivo, sin borrar su horario semanal. Al no enviar horas, se bloquea el día completo.
+
+  **Qué esperar:** 201 con `diaCompleto: true`, `horaInicio: 00:00:00`, `horaFin: 23:59:59` y `motivo: OTRO`.
+url: "{{base}}/api/ofertas/{{idServicio}}/bloqueos"
+method: POST
+headers:
+  Authorization: Bearer {{tokenProv}}
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+      "fecha": "{{fechaA}}"
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('Responde 201', () => pm.response.to.have.status(201));
+      const j = pm.response.json();
+      pm.test('Dia completo', () => pm.expect(j.diaCompleto).to.eql(true));
+      pm.test('Motivo por defecto OTRO', () => pm.expect(j.motivo).to.eql('OTRO'));
+      pm.test('Hora fin al final del dia', () => pm.expect(j.horaFin.startsWith('23:59:59')).to.eql(true));
+    language: text/javascript
+order: 10000

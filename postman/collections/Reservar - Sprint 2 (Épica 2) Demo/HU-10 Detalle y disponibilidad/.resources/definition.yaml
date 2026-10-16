@@ -1,0 +1,3 @@
+$kind: collection
+description: Consulta pública del detalle de un servicio con sus próximas franjas.
+order: 6000

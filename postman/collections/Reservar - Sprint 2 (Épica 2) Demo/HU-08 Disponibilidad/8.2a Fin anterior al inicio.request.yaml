@@ -1,0 +1,25 @@
+$kind: http-request
+description: |-
+  **Qué decir:** La hora de fin debe ser posterior a la de inicio. Mensaje específico.
+
+  **Qué esperar:** 400, `INTERVALO_HORARIO_INVALIDO`.
+url: "{{base}}/api/ofertas/{{idServicio}}/disponibilidad"
+method: POST
+headers:
+  Authorization: Bearer {{tokenProv}}
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+      "diaSemana": "{{diaA}}",
+      "horaInicio": "15:00:00",
+      "horaFin": "14:00:00"
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('Responde 400', () => pm.response.to.have.status(400));
+      pm.test('codigo = INTERVALO_HORARIO_INVALIDO', () => pm.expect(pm.response.json().codigo).to.eql('INTERVALO_HORARIO_INVALIDO'));
+    language: text/javascript
+order: 4000

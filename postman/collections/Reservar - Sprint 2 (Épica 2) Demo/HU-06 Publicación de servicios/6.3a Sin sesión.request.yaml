@@ -1,0 +1,27 @@
+$kind: http-request
+description: |-
+  **Qué decir:** Sin token no se puede publicar. La autorización se valida en el servidor, no solo en la interfaz.
+
+  **Qué esperar:** 401.
+
+  **Nota:** El cuerpo es el estándar de Spring (lo rechaza el filtro de seguridad), no el contrato de errores del proyecto; está documentado en el README.
+url: "{{base}}/api/ofertas"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+      "idTipoServicio": {{idTipoServicio}},
+      "nombre": "Corte de prueba Sprint 2",
+      "descripcion": "Corte clasico para la demo",
+      "duracionMinutos": 30,
+      "modalidad": "PRESENCIAL",
+      "ubicacion": "Medellin"
+    }
+scripts:
+  - type: afterResponse
+    code: pm.test('Responde 401', () => pm.response.to.have.status(401));
+    language: text/javascript
+order: 5000

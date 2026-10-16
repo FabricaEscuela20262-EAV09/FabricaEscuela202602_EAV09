@@ -1,0 +1,13 @@
+# Use this workspace to collaborate
+workspace:
+  id: 25cdf24d-75c8-4db8-baaa-b8280d817b29
+
+cloudResources:
+  collections:
+    ../postman/collections/Reservar - Sprint 2 (Épica 2) Demo: 57ed4ff4-b706-40e1-b859-5f0c40294957
+
+# All resources in the `postman/` folder are automatically registered in Local View.
+# Point to additional files outside the `postman/` folder to register them individually. Example:
+#localResources:
+#  collections:
+#    - ../tests/E2E Test Collection/

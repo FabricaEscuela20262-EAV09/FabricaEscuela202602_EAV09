@@ -1,0 +1,28 @@
+$kind: http-request
+description: |-
+  **Qué decir:** Si el tipo de servicio no pertenece al catálogo, se rechaza.
+
+  **Qué esperar:** 400, `TIPO_SERVICIO_NO_ENCONTRADO`.
+url: "{{base}}/api/ofertas"
+method: POST
+headers:
+  Authorization: Bearer {{tokenProv}}
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+      "idTipoServicio": 9999,
+      "nombre": "Corte de prueba Sprint 2",
+      "descripcion": "Corte clasico para la demo",
+      "duracionMinutos": 30,
+      "modalidad": "PRESENCIAL",
+      "ubicacion": "Medellin"
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('Responde 400', () => pm.response.to.have.status(400));
+      pm.test('codigo = TIPO_SERVICIO_NO_ENCONTRADO', () => pm.expect(pm.response.json().codigo).to.eql('TIPO_SERVICIO_NO_ENCONTRADO'));
+    language: text/javascript
+order: 3000

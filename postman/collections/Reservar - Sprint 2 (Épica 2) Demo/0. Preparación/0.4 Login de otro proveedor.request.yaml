@@ -1,0 +1,23 @@
+$kind: http-request
+description: |-
+  **Qué decir:** Solo si tienen una segunda cuenta de proveedor. Sirve para probar que no se puede editar una oferta ajena.
+
+  **Qué esperar:** 200. El token se guarda en `tokenOtroProv`.
+url: "{{base}}/api/auth/login"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+      "correo": "{{correoOtroProveedor}}",
+      "contrasena": "{{contrasenaOtroProveedor}}"
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      if (pm.response.code === 200) { pm.collectionVariables.set('tokenOtroProv', pm.response.json().token); }
+      pm.test('Login otro proveedor', () => pm.response.to.have.status(200));
+    language: text/javascript
+order: 4000

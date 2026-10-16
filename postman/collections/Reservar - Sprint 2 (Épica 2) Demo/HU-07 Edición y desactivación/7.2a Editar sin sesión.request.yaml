@@ -1,0 +1,25 @@
+$kind: http-request
+description: |-
+  **Qué decir:** Un usuario no autenticado no puede editar.
+
+  **Qué esperar:** 401.
+url: "{{base}}/api/ofertas/{{idServicio}}"
+method: PUT
+headers:
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+      "idTipoServicio": {{idTipoServicio}},
+      "nombre": "Corte de prueba Sprint 2",
+      "descripcion": "Corte clasico para la demo",
+      "duracionMinutos": 30,
+      "modalidad": "PRESENCIAL",
+      "ubicacion": "Medellin"
+    }
+scripts:
+  - type: afterResponse
+    code: pm.test('Responde 401', () => pm.response.to.have.status(401));
+    language: text/javascript
+order: 2000

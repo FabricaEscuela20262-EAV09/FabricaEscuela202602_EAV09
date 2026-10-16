@@ -1,0 +1,20 @@
+$kind: http-request
+description: |-
+  **Qué decir:** Si nada coincide, el sistema devuelve una lista vacía con un mensaje claro, no un error.
+
+  **Qué esperar:** 200 con `content: []`, `empty: true` y `mensaje: "No se encontraron servicios que coincidan con la búsqueda."`.
+
+  **Nota:** El resto de los campos de la página no cambia; `mensaje` es `null` cuando hay resultados.
+url: "{{base}}/api/ofertas?texto=zzzzzz"
+method: GET
+queryParams:
+  texto: zzzzzz
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('Responde 200', () => pm.response.to.have.status(200));
+      const j = pm.response.json();
+      pm.test('Lista vacia', () => { pm.expect(j.content).to.have.lengthOf(0); pm.expect(j.empty).to.eql(true); });
+      pm.test('Trae mensaje claro', () => pm.expect(j.mensaje).to.eql('No se encontraron servicios que coincidan con la búsqueda.'));
+    language: text/javascript
+order: 4000

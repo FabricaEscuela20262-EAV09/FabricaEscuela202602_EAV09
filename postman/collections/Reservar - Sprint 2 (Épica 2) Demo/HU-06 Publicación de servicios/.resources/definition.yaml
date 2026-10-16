@@ -1,0 +1,3 @@
+$kind: collection
+description: El proveedor publica servicios. Solo proveedores con cuenta activa pueden hacerlo.
+order: 2000

@@ -1,0 +1,25 @@
+$kind: http-request
+description: |-
+  **Qué decir:** El proveedor define día de la semana, hora de inicio y hora de fin.
+
+  **Qué esperar:** 201 con `tipo: SEMANAL` y las horas 09:00 a 12:00 en el día A.
+url: "{{base}}/api/ofertas/{{idServicio}}/disponibilidad"
+method: POST
+headers:
+  Authorization: Bearer {{tokenProv}}
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+      "diaSemana": "{{diaA}}",
+      "horaInicio": "09:00:00",
+      "horaFin": "12:00:00"
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('Responde 201', () => pm.response.to.have.status(201));
+      pm.test('Es semanal', () => pm.expect(pm.response.json().tipo).to.eql('SEMANAL'));
+    language: text/javascript
+order: 1000

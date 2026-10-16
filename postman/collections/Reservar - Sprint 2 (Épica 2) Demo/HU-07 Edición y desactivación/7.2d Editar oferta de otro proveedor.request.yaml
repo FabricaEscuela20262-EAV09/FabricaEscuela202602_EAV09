@@ -1,0 +1,34 @@
+$kind: http-request
+description: |-
+  **Qué decir:** Un proveedor distinto del dueño no puede editar. La propiedad se valida en el servicio con la identidad que sale del token, nunca de un parámetro.
+
+  **Qué esperar:** 403, `OFERTA_NO_PROPIA`.
+
+  **Nota:** Solo si hay una segunda cuenta de proveedor (paso 0.4). Si no, se omite y se explica que la regla está en el servicio.
+url: "{{base}}/api/ofertas/{{idServicio}}"
+method: PUT
+headers:
+  Authorization: Bearer {{tokenOtroProv}}
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+      "idTipoServicio": {{idTipoServicio}},
+      "nombre": "Corte de prueba Sprint 2",
+      "descripcion": "Corte clasico para la demo",
+      "duracionMinutos": 30,
+      "modalidad": "PRESENCIAL",
+      "ubicacion": "Medellin"
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      if (!pm.collectionVariables.get('tokenOtroProv')) {
+        pm.test.skip('Requiere tokenOtroProv (paso 0.4)');
+      } else {
+        pm.test('Responde 403', () => pm.response.to.have.status(403));
+        pm.test('codigo = OFERTA_NO_PROPIA', () => pm.expect(pm.response.json().codigo).to.eql('OFERTA_NO_PROPIA'));
+      }
+    language: text/javascript
+order: 5000

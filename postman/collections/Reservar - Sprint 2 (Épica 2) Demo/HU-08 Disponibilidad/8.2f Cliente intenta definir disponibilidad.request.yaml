@@ -1,0 +1,31 @@
+$kind: http-request
+description: |-
+  **Qué decir:** Solo el proveedor dueño puede modificar su disponibilidad.
+
+  **Qué esperar:** 403, `ROL_NO_AUTORIZADO`.
+
+  **Nota:** Se omite si no hay tokenCli.
+url: "{{base}}/api/ofertas/{{idServicio}}/disponibilidad"
+method: POST
+headers:
+  Authorization: Bearer {{tokenCli}}
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+      "diaSemana": "{{diaA}}",
+      "horaInicio": "16:00:00",
+      "horaFin": "17:00:00"
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      if (!pm.collectionVariables.get('tokenCli')) {
+        pm.test.skip('Requiere tokenCli');
+      } else {
+        pm.test('Responde 403', () => pm.response.to.have.status(403));
+        pm.test('codigo = ROL_NO_AUTORIZADO', () => pm.expect(pm.response.json().codigo).to.eql('ROL_NO_AUTORIZADO'));
+      }
+    language: text/javascript
+order: 9000

@@ -1,0 +1,16 @@
+$kind: http-request
+description: |-
+  **Qué decir:** Una oferta inactiva sale de las búsquedas.
+
+  **Qué esperar:** 200 y la oferta de prueba ya no está en los resultados.
+url: "{{base}}/api/ofertas?texto=prueba"
+method: GET
+queryParams:
+  texto: prueba
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('Responde 200', () => pm.response.to.have.status(200));
+      pm.test('No aparece', () => pm.expect(pm.response.json().content.map(o => o.idServicio)).to.not.include(Number(pm.collectionVariables.get('idServicio'))));
+    language: text/javascript
+order: 2000

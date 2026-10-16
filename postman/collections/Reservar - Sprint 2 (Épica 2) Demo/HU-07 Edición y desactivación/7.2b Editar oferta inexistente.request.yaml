@@ -1,0 +1,28 @@
+$kind: http-request
+description: |-
+  **Qué decir:** Una oferta que no existe responde 404 (antes respondía 400).
+
+  **Qué esperar:** 404, `OFERTA_NO_ENCONTRADA`.
+url: "{{base}}/api/ofertas/9999"
+method: PUT
+headers:
+  Authorization: Bearer {{tokenProv}}
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+      "idTipoServicio": {{idTipoServicio}},
+      "nombre": "Corte de prueba Sprint 2",
+      "descripcion": "Corte clasico para la demo",
+      "duracionMinutos": 30,
+      "modalidad": "PRESENCIAL",
+      "ubicacion": "Medellin"
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('Responde 404', () => pm.response.to.have.status(404));
+      pm.test('codigo = OFERTA_NO_ENCONTRADA', () => pm.expect(pm.response.json().codigo).to.eql('OFERTA_NO_ENCONTRADA'));
+    language: text/javascript
+order: 3000

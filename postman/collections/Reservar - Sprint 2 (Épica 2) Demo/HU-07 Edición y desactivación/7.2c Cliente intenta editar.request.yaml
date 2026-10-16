@@ -1,0 +1,34 @@
+$kind: http-request
+description: |-
+  **Qué decir:** Un cliente no puede gestionar ofertas.
+
+  **Qué esperar:** 403, `ROL_NO_AUTORIZADO`.
+
+  **Nota:** Se omite si no hay tokenCli.
+url: "{{base}}/api/ofertas/{{idServicio}}"
+method: PUT
+headers:
+  Authorization: Bearer {{tokenCli}}
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+      "idTipoServicio": {{idTipoServicio}},
+      "nombre": "Corte de prueba Sprint 2",
+      "descripcion": "Corte clasico para la demo",
+      "duracionMinutos": 30,
+      "modalidad": "PRESENCIAL",
+      "ubicacion": "Medellin"
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      if (!pm.collectionVariables.get('tokenCli')) {
+        pm.test.skip('Requiere tokenCli');
+      } else {
+        pm.test('Responde 403', () => pm.response.to.have.status(403));
+        pm.test('codigo = ROL_NO_AUTORIZADO', () => pm.expect(pm.response.json().codigo).to.eql('ROL_NO_AUTORIZADO'));
+      }
+    language: text/javascript
+order: 4000

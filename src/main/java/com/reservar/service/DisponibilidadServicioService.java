@@ -27,10 +27,10 @@ public class DisponibilidadServicioService {
     private static final String ACTIVO = "ACTIVO";
     private static final Set<String> DIAS_VALIDOS = Set.of("LUNES", "MARTES", "MIERCOLES", "JUEVES", "VIERNES", "SABADO", "DOMINGO");
     private static final Set<String> MOTIVOS_VALIDOS = Set.of("RESERVADO", "OTRO");
-    // Un bloqueo de día completo se guarda como 00:00 a 23:59:59.999999,
-    // el máximo que admite una columna TIME de PostgreSQL (microsegundos).
+    // Un bloqueo de día completo se guarda como 00:00 a 23:59:59 (segundos enteros,
+    // sin fracciones, para evitar problemas de precisión al guardar en la columna TIME).
     private static final LocalTime INICIO_DIA = LocalTime.MIN;
-    private static final LocalTime FIN_DIA = LocalTime.of(23, 59, 59, 999_999_000);
+    private static final LocalTime FIN_DIA = LocalTime.of(23, 59, 59);
     private final DisponibilidadServicioRepository disponibilidadRepository;
     private final BloqueoDisponibilidadRepository bloqueoRepository;
     private final OfertaServicioRepository ofertaRepository;

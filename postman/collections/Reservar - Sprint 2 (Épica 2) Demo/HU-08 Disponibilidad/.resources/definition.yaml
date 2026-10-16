@@ -1,0 +1,3 @@
+$kind: collection
+description: "Franjas semanales y bloqueos de fechas puntuales. Las fechas y los días de la semana se calculan solos a partir de hoy: la fecha A es mañana y la B pasado mañana, así siempre caen dentro de la ventana de 7 días del detalle."
+order: 4000
