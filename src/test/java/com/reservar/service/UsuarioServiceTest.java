@@ -96,7 +96,6 @@ class UsuarioServiceTest {
 
     private static Proveedor proveedor() {
         Proveedor proveedor = new Proveedor();
-        proveedor.setTipoServicio("Plomería");
         proveedor.setDescripcion("Reparaciones");
         return proveedor;
     }
@@ -138,7 +137,7 @@ class UsuarioServiceTest {
         }
 
         @Test
-        void deberiaIncluirTipoServicioYDescripcionCuandoElUsuarioEsProveedor() {
+        void deberiaIncluirDescripcionCuandoElUsuarioEsProveedor() {
             // Arrange
             autenticar(usuario(Rol.PROVEEDOR));
             when(proveedorRepository.findByUsuarioIdUsuario(ID_USUARIO)).thenReturn(Optional.of(proveedor()));
@@ -149,7 +148,6 @@ class UsuarioServiceTest {
             // Assert
             assertAll(
                     () -> assertEquals("PROVEEDOR", perfil.getRol()),
-                    () -> assertEquals("Plomería", perfil.getTipoServicio()),
                     () -> assertEquals("Reparaciones", perfil.getDescripcion())
             );
         }
@@ -323,7 +321,6 @@ class UsuarioServiceTest {
 
             // Assert
             assertAll(
-                    () -> assertEquals("Electricidad", proveedor.getTipoServicio()),
                     () -> assertEquals("Instalaciones", proveedor.getDescripcion()),
                     () -> assertEquals(Rol.PROVEEDOR, usuario.getRol()),
                     () -> verify(proveedorRepository).save(proveedor)
@@ -345,7 +342,6 @@ class UsuarioServiceTest {
 
             // Assert
             assertAll(
-                    () -> assertEquals("Plomería", proveedor.getTipoServicio()),
                     () -> assertEquals("Reparaciones", proveedor.getDescripcion())
             );
         }

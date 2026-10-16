@@ -146,7 +146,6 @@ public class AuthService {
         Proveedor proveedor = new Proveedor();
         proveedor.setUsuario(usuario);
         proveedor.setCodigoProveedor(codigoProveedor);
-        proveedor.setTipoServicio(request.getTipoServicio().trim());
         proveedor.setDescripcion(request.getDescripcion());
 
         proveedorRepository.save(proveedor);

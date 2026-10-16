@@ -111,7 +111,7 @@ class AuthControllerTest {
                         "PENDIENTE"));
         String body = """
                 {"nombreCompleto":"Luis","correo":"luis@correo.com","contrasena":"Clave123!",
-                 "codigoProveedor":"PROV-001","tipoServicio":"Plomería"}
+                 "codigoProveedor":"PROV-001"}
                 """;
 
         // Act + Assert
@@ -121,7 +121,7 @@ class AuthControllerTest {
     }
 
     @Test
-    void deberiaResponder400CuandoElProveedorNoEnviaCodigoNiTipoDeServicio() throws Exception {
+    void deberiaResponder400CuandoElProveedorNoEnviaCodigo() throws Exception {
         // Arrange
         String body = """
                 {"nombreCompleto":"Luis","correo":"luis@correo.com","contrasena":"Clave123!"}
@@ -130,7 +130,7 @@ class AuthControllerTest {
         // Act + Assert
         mockMvc.perform(post("/api/auth/registro/proveedor").contentType(MediaType.APPLICATION_JSON).content(body))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.errores.length()").value(2));
+                .andExpect(jsonPath("$.errores.length()").value(1));
         verifyNoInteractions(authService);
     }
 

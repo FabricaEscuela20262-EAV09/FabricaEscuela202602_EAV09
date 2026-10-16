@@ -52,4 +52,21 @@ class GlobalExceptionHandlerTest {
                 () -> assertNull(body.getErrores())
         );
     }
+
+    @Test
+    void deberiaResponder404CuandoLaOfertaNoEstaDisponible() {
+        // Arrange
+        BusinessException ex = new BusinessException("OFERTA_NO_DISPONIBLE", "Servicio no disponible.");
+
+        // Act
+        ResponseEntity<ErrorResponse> respuesta = handler.handleBusinessException(ex);
+
+        // Assert
+        ErrorResponse body = respuesta.getBody();
+        assertAll(
+                () -> assertEquals(HttpStatus.NOT_FOUND, respuesta.getStatusCode()),
+                () -> assertEquals("OFERTA_NO_DISPONIBLE", body.getCodigo()),
+                () -> assertEquals("Servicio no disponible.", body.getMensaje())
+        );
+    }
 }

@@ -16,6 +16,15 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleBusinessException(
             BusinessException ex) {
 
+        HttpStatus status = switch (ex.getCodigo()) {
+            case "USUARIO_NO_AUTENTICADO" -> HttpStatus.UNAUTHORIZED;
+            case "ROL_NO_AUTORIZADO", "OFERTA_NO_PROPIA" ->
+                    HttpStatus.FORBIDDEN;
+            case "OFERTA_NO_ENCONTRADA", "OFERTA_NO_DISPONIBLE" ->
+                    HttpStatus.NOT_FOUND;
+            default -> HttpStatus.BAD_REQUEST;
+        };
+
         ErrorResponse response = new ErrorResponse(
                 ex.getCodigo(),
                 ex.getMessage(),
@@ -23,9 +32,7 @@ public class GlobalExceptionHandler {
                 null
         );
 
-        return ResponseEntity
-                .status(HttpStatus.BAD_REQUEST)
-                .body(response);
+        return ResponseEntity.status(status).body(response);
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)

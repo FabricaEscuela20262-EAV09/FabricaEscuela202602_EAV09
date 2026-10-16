@@ -250,7 +250,6 @@ class AuthServiceTest {
             request.setCorreo(" luis@correo.com ");
             request.setContrasena(contrasena);
             request.setCodigoProveedor("  PROV-001 ");
-            request.setTipoServicio("  Plomería ");
             request.setDescripcion("Reparaciones");
             return request;
         }
@@ -290,7 +289,6 @@ class AuthServiceTest {
                     () -> assertEquals("luis@correo.com", usuario.getCorreo()),
                     () -> assertEquals(usuario, proveedor.getUsuario()),
                     () -> assertEquals(codigo, proveedor.getCodigoProveedor()),
-                    () -> assertEquals("Plomería", proveedor.getTipoServicio()),
                     () -> assertEquals("Reparaciones", proveedor.getDescripcion()),
                     () -> assertEquals(EstadoCodigoProveedor.USADO, codigo.getEstado()),
                     () -> assertNotNull(codigo.getFechaUso()),

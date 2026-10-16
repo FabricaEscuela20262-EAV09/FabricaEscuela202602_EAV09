@@ -24,9 +24,6 @@ public class Proveedor {
     @JoinColumn(name = "id_codigo_proveedor", unique = true, foreignKey = @ForeignKey(name = "fk_proveedor_codigo"))
     private CodigoProveedor codigoProveedor;
 
-    @Column(name = "tipo_servicio", nullable = false, length = 100)
-    private String tipoServicio;
-
     @Column(name = "descripcion", columnDefinition = "TEXT")
     private String descripcion;
 
