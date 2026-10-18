@@ -170,22 +170,27 @@ class OfertaServicioGestionTest {
 
         @Test
         void deberiaRechazarCuandoNoHayUsuarioAutenticado() {
+            // Act + Assert
             assertEquals("USUARIO_NO_AUTENTICADO", codigo(() -> service.crearOferta(null, crearRequest())));
             verify(ofertaRepository, never()).save(any());
         }
 
         @Test
         void deberiaRechazarConRolNoAutorizadoCuandoElUsuarioEsCliente() {
+            // Arrange
             Usuario cliente = ServicioFixtures.usuario(Rol.CLIENTE, EstadoUsuario.ACTIVO);
 
+            // Act + Assert
             assertEquals("ROL_NO_AUTORIZADO", codigo(() -> service.crearOferta(cliente, crearRequest())));
             verify(ofertaRepository, never()).save(any());
         }
 
         @Test
         void deberiaRechazarConRolNoAutorizadoCuandoElUsuarioNoTieneRol() {
+            // Arrange
             Usuario sinRol = ServicioFixtures.usuario(null, EstadoUsuario.ACTIVO);
 
+            // Act + Assert
             assertEquals("ROL_NO_AUTORIZADO", codigo(() -> service.crearOferta(sinRol, crearRequest())));
         }
 
@@ -200,44 +205,56 @@ class OfertaServicioGestionTest {
 
         @Test
         void deberiaRechazarProveedorSinEstado() {
+            // Arrange
             Usuario sinEstado = ServicioFixtures.usuario(Rol.PROVEEDOR, null);
 
+            // Act + Assert
             assertEquals("PROVEEDOR_NO_ACTIVO", codigo(() -> service.crearOferta(sinEstado, crearRequest())));
         }
 
         @Test
         void deberiaRechazarCuandoNoExistePerfilDeProveedor() {
+            // Arrange
             when(proveedorRepository.findByUsuarioIdUsuario(usuario.getIdUsuario())).thenReturn(Optional.empty());
 
+            // Act + Assert
             assertEquals("PROVEEDOR_NO_ENCONTRADO", codigo(() -> service.crearOferta(usuario, crearRequest())));
         }
 
         @Test
         void deberiaRechazarCuandoLaCategoriaNoPerteneceALaListaPredefinida() {
+            // Arrange
             when(tipoServicioRepository.findById(ID_TIPO)).thenReturn(Optional.empty());
 
+            // Act + Assert
             assertEquals("TIPO_SERVICIO_NO_ENCONTRADO", codigo(() -> service.crearOferta(usuario, crearRequest())));
             verify(ofertaRepository, never()).save(any());
         }
 
         @Test
         void deberiaRechazarCuandoElTipoDeServicioEstaInactivo() {
+            // Arrange
             tipo.setEstado("INACTIVO");
 
+            // Act + Assert
             assertEquals("TIPO_SERVICIO_INACTIVO", codigo(() -> service.crearOferta(usuario, crearRequest())));
         }
 
         @Test
         void deberiaRechazarCuandoLaCategoriaDelTipoEstaInactiva() {
+            // Arrange
             tipo.getCategoria().setEstado("INACTIVO");
 
+            // Act + Assert
             assertEquals("CATEGORIA_INACTIVA", codigo(() -> service.crearOferta(usuario, crearRequest())));
         }
 
         @Test
         void deberiaRechazarCuandoElTipoNoTieneCategoria() {
+            // Arrange
             tipo.setCategoria(null);
 
+            // Act + Assert
             assertEquals("CATEGORIA_INACTIVA", codigo(() -> service.crearOferta(usuario, crearRequest())));
         }
 
@@ -292,9 +309,11 @@ class OfertaServicioGestionTest {
 
         @Test
         void deberiaRechazarDuracionNula() {
+            // Arrange
             CrearOfertaRequest request = crearRequest();
             request.setDuracionMinutos(null);
 
+            // Act + Assert
             assertEquals("DURACION_INVALIDA", codigo(() -> service.crearOferta(usuario, request)));
         }
     }
@@ -349,8 +368,10 @@ class OfertaServicioGestionTest {
 
         @Test
         void deberiaResponderOfertaNoEncontradaCuandoNoExiste() {
+            // Arrange
             when(ofertaRepository.findById(99L)).thenReturn(Optional.empty());
 
+            // Act + Assert
             assertEquals("OFERTA_NO_ENCONTRADA",
                     codigo(() -> service.actualizarOferta(usuario, 99L, actualizarRequest())));
         }
@@ -370,8 +391,10 @@ class OfertaServicioGestionTest {
 
         @Test
         void deberiaRechazarEdicionDeUnClienteSinConsultarElRepositorio() {
+            // Arrange
             Usuario cliente = ServicioFixtures.usuario(Rol.CLIENTE, EstadoUsuario.ACTIVO);
 
+            // Act + Assert
             assertEquals("ROL_NO_AUTORIZADO",
                     codigo(() -> service.actualizarOferta(cliente, ID_SERVICIO, actualizarRequest())));
             verify(ofertaRepository, never()).findById(any());
@@ -379,9 +402,11 @@ class OfertaServicioGestionTest {
 
         @Test
         void deberiaRechazarEdicionConTipoDeServicioInactivo() {
+            // Arrange
             when(ofertaRepository.findById(ID_SERVICIO)).thenReturn(Optional.of(ofertaPropia("ACTIVO")));
             tipo.setEstado("INACTIVO");
 
+            // Act + Assert
             assertEquals("TIPO_SERVICIO_INACTIVO",
                     codigo(() -> service.actualizarOferta(usuario, ID_SERVICIO, actualizarRequest())));
             verify(ofertaRepository, never()).save(any());
@@ -389,10 +414,12 @@ class OfertaServicioGestionTest {
 
         @Test
         void deberiaRechazarEdicionConDatosInvalidos() {
+            // Arrange
             when(ofertaRepository.findById(ID_SERVICIO)).thenReturn(Optional.of(ofertaPropia("ACTIVO")));
             ActualizarOfertaRequest request = actualizarRequest();
             request.setNombre(" ");
 
+            // Act + Assert
             assertEquals("NOMBRE_REQUERIDO", codigo(() -> service.actualizarOferta(usuario, ID_SERVICIO, request)));
             verify(ofertaRepository, never()).save(any());
         }
@@ -419,23 +446,28 @@ class OfertaServicioGestionTest {
 
         @Test
         void deberiaRechazarDesactivacionDeOfertaAjena() {
+            // Arrange
             Proveedor otro = ServicioFixtures.proveedor(99L, ServicioFixtures.proveedorActivo());
             when(ofertaRepository.findById(ID_SERVICIO))
                     .thenReturn(Optional.of(ServicioFixtures.oferta(otro, tipo, "ACTIVO")));
 
+            // Act + Assert
             assertEquals("OFERTA_NO_PROPIA", codigo(() -> service.desactivarOferta(usuario, ID_SERVICIO)));
             verify(ofertaRepository, never()).save(any());
         }
 
         @Test
         void deberiaRechazarDesactivacionDeOfertaInexistente() {
+            // Arrange
             when(ofertaRepository.findById(99L)).thenReturn(Optional.empty());
 
+            // Act + Assert
             assertEquals("OFERTA_NO_ENCONTRADA", codigo(() -> service.desactivarOferta(usuario, 99L)));
         }
 
         @Test
         void deberiaRechazarDesactivacionSinUsuario() {
+            // Act + Assert
             assertEquals("USUARIO_NO_AUTENTICADO", codigo(() -> service.desactivarOferta(null, ID_SERVICIO)));
         }
     }
@@ -482,17 +514,21 @@ class OfertaServicioGestionTest {
 
         @Test
         void deberiaRechazarCategoriaInexistente() {
+            // Arrange
             when(categoriaRepository.findById(404L)).thenReturn(Optional.empty());
 
+            // Act + Assert
             assertEquals("CATEGORIA_NO_ENCONTRADA", codigo(() -> service.buscarOfertas("x", 404L, pagina)));
             verify(ofertaRepository, never()).buscarOfertasActivas(any(), any(), any());
         }
 
         @Test
         void deberiaRechazarCategoriaInactiva() {
+            // Arrange
             when(categoriaRepository.findById(ID_CATEGORIA))
                     .thenReturn(Optional.of(ServicioFixtures.categoria("INACTIVO")));
 
+            // Act + Assert
             assertEquals("CATEGORIA_INACTIVA", codigo(() -> service.buscarOfertas("x", ID_CATEGORIA, pagina)));
         }
 
@@ -557,8 +593,10 @@ class OfertaServicioGestionTest {
 
         @Test
         void deberiaRechazarListadoDeUnClienteEnAmbosEndpoints() {
+            // Arrange
             Usuario cliente = ServicioFixtures.usuario(Rol.CLIENTE, EstadoUsuario.ACTIVO);
 
+            // Act + Assert
             assertAll(
                     () -> assertEquals("ROL_NO_AUTORIZADO", codigo(() -> service.listarMisOfertas(cliente, pagina))),
                     () -> assertEquals("ROL_NO_AUTORIZADO",

@@ -201,12 +201,14 @@ class DisponibilidadServicioGestionTest {
 
         @Test
         void deberiaRechazarHoraDeFinIgualALaDeInicio() {
+            // Act + Assert
             assertEquals("INTERVALO_HORARIO_INVALIDO", codigo(() -> service.agregarDisponibilidad(
                     usuario, ID_SERVICIO, franja("LUNES", LocalTime.of(9, 0), LocalTime.of(9, 0)))));
         }
 
         @Test
         void deberiaRechazarHoraDeFinAnteriorALaDeInicio() {
+            // Act + Assert
             assertEquals("INTERVALO_HORARIO_INVALIDO", codigo(() -> service.agregarDisponibilidad(
                     usuario, ID_SERVICIO, franja("LUNES", LocalTime.of(12, 0), LocalTime.of(9, 0)))));
             verify(disponibilidadRepository, never()).save(any());
@@ -214,6 +216,7 @@ class DisponibilidadServicioGestionTest {
 
         @Test
         void deberiaRechazarHorasNulas() {
+            // Act + Assert
             assertEquals("INTERVALO_HORARIO_INVALIDO", codigo(() -> service.agregarDisponibilidad(
                     usuario, ID_SERVICIO, franja("LUNES", null, LocalTime.of(9, 0)))));
         }
@@ -240,9 +243,11 @@ class DisponibilidadServicioGestionTest {
 
         @Test
         void deberiaRechazarConForbiddenSemanticoCuandoElServicioEsDeOtroProveedor() {
+            // Arrange
             when(ofertaRepository.findByIdServicioAndEstado(ID_SERVICIO, "ACTIVO"))
                     .thenReturn(Optional.of(ofertaDeOtroProveedor()));
 
+            // Act + Assert
             assertEquals("OFERTA_NO_PROPIA", codigo(() -> service.agregarDisponibilidad(
                     usuario, ID_SERVICIO, franja("LUNES", LocalTime.of(9, 0), LocalTime.of(10, 0)))));
             verify(disponibilidadRepository, never()).save(any());
@@ -250,17 +255,21 @@ class DisponibilidadServicioGestionTest {
 
         @Test
         void deberiaRechazarCuandoElUsuarioEsCliente() {
+            // Arrange
             Usuario cliente = ServicioFixtures.usuario(Rol.CLIENTE, EstadoUsuario.ACTIVO);
 
+            // Act + Assert
             assertEquals("ROL_NO_AUTORIZADO", codigo(() -> service.agregarDisponibilidad(
                     cliente, ID_SERVICIO, franja("LUNES", LocalTime.of(9, 0), LocalTime.of(10, 0)))));
         }
 
         @Test
         void deberiaRechazarCuandoNoHayUsuarioORolNulo() {
+            // Arrange
             Usuario sinRol = ServicioFixtures.usuario(null, EstadoUsuario.ACTIVO);
             DisponibilidadRequest request = franja("LUNES", LocalTime.of(9, 0), LocalTime.of(10, 0));
 
+            // Act + Assert
             assertAll(
                     () -> assertEquals("ROL_NO_AUTORIZADO",
                             codigo(() -> service.agregarDisponibilidad(null, ID_SERVICIO, request))),
@@ -271,10 +280,12 @@ class DisponibilidadServicioGestionTest {
 
         @Test
         void deberiaRechazarProveedorConCuentaInactivaOSinEstado() {
+            // Arrange
             Usuario inactivo = ServicioFixtures.usuario(Rol.PROVEEDOR, EstadoUsuario.INACTIVO);
             Usuario sinEstado = ServicioFixtures.usuario(Rol.PROVEEDOR, null);
             DisponibilidadRequest request = franja("LUNES", LocalTime.of(9, 0), LocalTime.of(10, 0));
 
+            // Act + Assert
             assertAll(
                     () -> assertEquals("PROVEEDOR_NO_ACTIVO",
                             codigo(() -> service.agregarDisponibilidad(inactivo, ID_SERVICIO, request))),
@@ -285,26 +296,32 @@ class DisponibilidadServicioGestionTest {
 
         @Test
         void deberiaRechazarCuandoElProveedorNoTienePerfil() {
+            // Arrange
             when(proveedorRepository.findByUsuarioIdUsuario(usuario.getIdUsuario())).thenReturn(Optional.empty());
 
+            // Act + Assert
             assertEquals("PROVEEDOR_NO_ENCONTRADO", codigo(() -> service.agregarDisponibilidad(
                     usuario, ID_SERVICIO, franja("LUNES", LocalTime.of(9, 0), LocalTime.of(10, 0)))));
         }
 
         @Test
         void deberiaRechazarCuandoLaOfertaNoExisteOEstaInactiva() {
+            // Arrange
             when(ofertaRepository.findByIdServicioAndEstado(77L, "ACTIVO")).thenReturn(Optional.empty());
 
+            // Act + Assert
             assertEquals("OFERTA_NO_DISPONIBLE", codigo(() -> service.agregarDisponibilidad(
                     usuario, 77L, franja("LUNES", LocalTime.of(9, 0), LocalTime.of(10, 0)))));
         }
 
         @Test
         void deberiaRechazarCuandoElTipoOLaCategoriaDeLaOfertaEstanInactivos() {
+            // Arrange
             TipoServicio tipoInactivo = ServicioFixtures.tipo("INACTIVO", ServicioFixtures.categoria("ACTIVO"));
             oferta.setTipoServicio(tipoInactivo);
             DisponibilidadRequest request = franja("LUNES", LocalTime.of(9, 0), LocalTime.of(10, 0));
 
+            // Act + Assert
             assertEquals("OFERTA_NO_DISPONIBLE", codigo(() -> service.agregarDisponibilidad(usuario, ID_SERVICIO, request)));
 
             oferta.setTipoServicio(ServicioFixtures.tipo("ACTIVO", ServicioFixtures.categoria("INACTIVO")));
@@ -336,38 +353,47 @@ class DisponibilidadServicioGestionTest {
 
         @Test
         void deberiaRechazarElListadoDeUnaOfertaInactivaOInexistente() {
+            // Arrange
             when(ofertaRepository.findByIdServicioAndEstado(55L, "ACTIVO")).thenReturn(Optional.empty());
 
+            // Act + Assert
             assertEquals("OFERTA_NO_DISPONIBLE", codigo(() -> service.listarDisponibilidad(55L)));
         }
 
         @Test
         void deberiaEliminarUnaFranjaPropia() {
+            // Arrange
             DisponibilidadServicio existente = franjaExistente(
                     5L, oferta, "LUNES", LocalTime.of(9, 0), LocalTime.of(10, 0));
             when(disponibilidadRepository.findById(5L)).thenReturn(Optional.of(existente));
 
+            // Act
             service.eliminarDisponibilidad(usuario, ID_SERVICIO, 5L);
 
+            // Assert
             verify(disponibilidadRepository).delete(existente);
         }
 
         @Test
         void deberiaRechazarEliminarUnaFranjaInexistente() {
+            // Arrange
             when(disponibilidadRepository.findById(5L)).thenReturn(Optional.empty());
 
+            // Act + Assert
             assertEquals("DISPONIBILIDAD_NO_ENCONTRADA",
                     codigo(() -> service.eliminarDisponibilidad(usuario, ID_SERVICIO, 5L)));
         }
 
         @Test
         void deberiaRechazarEliminarUnaFranjaQuePerteneceAOtraOferta() {
+            // Arrange
             OfertaServicio otraOferta = ServicioFixtures.oferta(proveedor, ServicioFixtures.tipoActivo(), "ACTIVO");
             otraOferta.setIdServicio(11L);
             DisponibilidadServicio existente = franjaExistente(
                     5L, otraOferta, "LUNES", LocalTime.of(9, 0), LocalTime.of(10, 0));
             when(disponibilidadRepository.findById(5L)).thenReturn(Optional.of(existente));
 
+            // Act + Assert
             assertEquals("DISPONIBILIDAD_NO_PERTENECE",
                     codigo(() -> service.eliminarDisponibilidad(usuario, ID_SERVICIO, 5L)));
             verify(disponibilidadRepository, never()).delete(any(DisponibilidadServicio.class));
@@ -375,9 +401,11 @@ class DisponibilidadServicioGestionTest {
 
         @Test
         void deberiaRechazarEliminarFranjasDeUnServicioAjeno() {
+            // Arrange
             when(ofertaRepository.findByIdServicioAndEstado(ID_SERVICIO, "ACTIVO"))
                     .thenReturn(Optional.of(ofertaDeOtroProveedor()));
 
+            // Act + Assert
             assertEquals("OFERTA_NO_PROPIA", codigo(() -> service.eliminarDisponibilidad(usuario, ID_SERVICIO, 5L)));
             verify(disponibilidadRepository, never()).findById(any());
         }
@@ -390,21 +418,27 @@ class DisponibilidadServicioGestionTest {
 
         @Test
         void deberiaPermitirBloquearHoy() {
+            // Arrange
             when(bloqueoRepository.findByServicioIdServicioAndFecha(eq(ID_SERVICIO), any())).thenReturn(List.of());
 
+            // Act
             DisponibilidadResponse respuesta = service.crearBloqueo(
                     usuario, ID_SERVICIO, bloqueoRequest(LocalDate.now(), null, null, null));
 
+            // Assert
             assertEquals(LocalDate.now(), respuesta.getFecha());
         }
 
         @Test
         void deberiaRegistrarMotivoReservadoSinImportarMayusculas() {
+            // Arrange
             when(bloqueoRepository.findByServicioIdServicioAndFecha(ID_SERVICIO, futura)).thenReturn(List.of());
 
+            // Act
             DisponibilidadResponse respuesta = service.crearBloqueo(
                     usuario, ID_SERVICIO, bloqueoRequest(futura, LocalTime.of(9, 0), LocalTime.of(10, 0), " reservado "));
 
+            // Assert
             assertAll(
                     () -> assertEquals("RESERVADO", respuesta.getMotivo()),
                     () -> assertEquals("BLOQUEO", respuesta.getTipo()),
@@ -415,6 +449,7 @@ class DisponibilidadServicioGestionTest {
 
         @Test
         void deberiaRechazarFechasPasadas() {
+            // Act + Assert
             assertEquals("FECHA_BLOQUEO_INVALIDA", codigo(() -> service.crearBloqueo(
                     usuario, ID_SERVICIO, bloqueoRequest(LocalDate.now().minusDays(1), null, null, null))));
             verify(bloqueoRepository, never()).save(any());
@@ -422,28 +457,33 @@ class DisponibilidadServicioGestionTest {
 
         @Test
         void deberiaRechazarMotivoDistintoDeReservadoUOtro() {
+            // Act + Assert
             assertEquals("MOTIVO_BLOQUEO_INVALIDO", codigo(() -> service.crearBloqueo(
                     usuario, ID_SERVICIO, bloqueoRequest(futura, null, null, "VACACIONES"))));
         }
 
         @Test
         void deberiaRechazarSoloLaHoraDeFin() {
+            // Act + Assert
             assertEquals("INTERVALO_HORARIO_INVALIDO", codigo(() -> service.crearBloqueo(
                     usuario, ID_SERVICIO, bloqueoRequest(futura, null, LocalTime.of(10, 0), null))));
         }
 
         @Test
         void deberiaRechazarBloqueoConHoraDeFinAnteriorALaDeInicio() {
+            // Act + Assert
             assertEquals("INTERVALO_HORARIO_INVALIDO", codigo(() -> service.crearBloqueo(
                     usuario, ID_SERVICIO, bloqueoRequest(futura, LocalTime.of(11, 0), LocalTime.of(10, 0), null))));
         }
 
         @Test
         void deberiaRechazarBloqueoParcialQueSeTraslapaConOtroBloqueo() {
+            // Arrange
             BloqueoDisponibilidad existente = bloqueoExistente(
                     1L, oferta, futura, LocalTime.of(9, 0), LocalTime.of(11, 0));
             when(bloqueoRepository.findByServicioIdServicioAndFecha(ID_SERVICIO, futura)).thenReturn(List.of(existente));
 
+            // Act + Assert
             assertEquals("BLOQUEO_TRASLAPADO", codigo(() -> service.crearBloqueo(
                     usuario, ID_SERVICIO, bloqueoRequest(futura, LocalTime.of(10, 0), LocalTime.of(12, 0), null))));
             verify(bloqueoRepository, never()).save(any());
@@ -451,39 +491,49 @@ class DisponibilidadServicioGestionTest {
 
         @Test
         void deberiaPermitirBloqueosParcialesContiguosEnLaMismaFecha() {
+            // Arrange
             BloqueoDisponibilidad existente = bloqueoExistente(
                     1L, oferta, futura, LocalTime.of(9, 0), LocalTime.of(11, 0));
             when(bloqueoRepository.findByServicioIdServicioAndFecha(ID_SERVICIO, futura)).thenReturn(List.of(existente));
 
+            // Act
             DisponibilidadResponse respuesta = service.crearBloqueo(
                     usuario, ID_SERVICIO, bloqueoRequest(futura, LocalTime.of(11, 0), LocalTime.of(12, 0), null));
 
+            // Assert
             assertEquals(LocalTime.of(11, 0), respuesta.getHoraInicio());
         }
 
         @Test
         void noDeberiaMarcarComoDiaCompletoUnBloqueoParcial() {
+            // Arrange
             when(bloqueoRepository.findByServicioIdServicioAndFecha(ID_SERVICIO, futura)).thenReturn(List.of());
 
+            // Act
             DisponibilidadResponse parcial = service.crearBloqueo(
                     usuario, ID_SERVICIO, bloqueoRequest(futura, LocalTime.MIN, LocalTime.of(12, 0), null));
 
+            // Assert
             assertFalse(parcial.getDiaCompleto());
         }
 
         @Test
         void deberiaRechazarBloqueoDeUnServicioAjeno() {
+            // Arrange
             when(ofertaRepository.findByIdServicioAndEstado(ID_SERVICIO, "ACTIVO"))
                     .thenReturn(Optional.of(ofertaDeOtroProveedor()));
 
+            // Act + Assert
             assertEquals("OFERTA_NO_PROPIA", codigo(() -> service.crearBloqueo(
                     usuario, ID_SERVICIO, bloqueoRequest(futura, null, null, null))));
         }
 
         @Test
         void deberiaRechazarBloqueoDeUnCliente() {
+            // Arrange
             Usuario cliente = ServicioFixtures.usuario(Rol.CLIENTE, EstadoUsuario.ACTIVO);
 
+            // Act + Assert
             assertEquals("ROL_NO_AUTORIZADO", codigo(() -> service.crearBloqueo(
                     cliente, ID_SERVICIO, bloqueoRequest(futura, null, null, null))));
         }
@@ -501,10 +551,13 @@ class DisponibilidadServicioGestionTest {
 
         @Test
         void deberiaListarTodosLosBloqueosCuandoNoHayRango() {
+            // Arrange
             when(bloqueoRepository.findByServicioIdServicio(ID_SERVICIO)).thenReturn(List.of(unBloqueo()));
 
+            // Act
             List<DisponibilidadResponse> bloqueos = service.listarBloqueos(ID_SERVICIO, null, null);
 
+            // Assert
             assertAll(
                     () -> assertEquals(1, bloqueos.size()),
                     () -> assertTrue(bloqueos.get(0).getDiaCompleto())
@@ -513,37 +566,46 @@ class DisponibilidadServicioGestionTest {
 
         @Test
         void deberiaFiltrarPorElRangoCompleto() {
+            // Arrange
             when(bloqueoRepository.findByServicioIdServicioAndFechaBetween(ID_SERVICIO, desde, hasta))
                     .thenReturn(List.of(unBloqueo()));
 
+            // Act + Assert
             assertEquals(1, service.listarBloqueos(ID_SERVICIO, desde, hasta).size());
         }
 
         @Test
         void deberiaFiltrarPorUnaSolaFechaCuandoSoloSeIndicaElInicio() {
+            // Arrange
             when(bloqueoRepository.findByServicioIdServicioAndFechaBetween(ID_SERVICIO, desde, desde))
                     .thenReturn(List.of(unBloqueo()));
 
+            // Act + Assert
             assertEquals(1, service.listarBloqueos(ID_SERVICIO, desde, null).size());
         }
 
         @Test
         void deberiaFiltrarPorUnaSolaFechaCuandoSoloSeIndicaElFin() {
+            // Arrange
             when(bloqueoRepository.findByServicioIdServicioAndFechaBetween(ID_SERVICIO, hasta, hasta))
                     .thenReturn(List.of());
 
+            // Act + Assert
             assertTrue(service.listarBloqueos(ID_SERVICIO, null, hasta).isEmpty());
         }
 
         @Test
         void deberiaRechazarUnRangoDeFechasInvertido() {
+            // Act + Assert
             assertEquals("RANGO_FECHAS_INVALIDO", codigo(() -> service.listarBloqueos(ID_SERVICIO, hasta, desde)));
         }
 
         @Test
         void deberiaRechazarElListadoDeUnaOfertaNoDisponible() {
+            // Arrange
             when(ofertaRepository.findByIdServicioAndEstado(55L, "ACTIVO")).thenReturn(Optional.empty());
 
+            // Act + Assert
             assertEquals("OFERTA_NO_DISPONIBLE", codigo(() -> service.listarBloqueos(55L, null, null)));
         }
     }
@@ -553,39 +615,48 @@ class DisponibilidadServicioGestionTest {
 
         @Test
         void deberiaEliminarUnBloqueoPropio() {
+            // Arrange
             BloqueoDisponibilidad existente = bloqueoExistente(
                     8L, oferta, LocalDate.now().plusDays(2), LocalTime.MIN, LocalTime.of(23, 59, 59));
             when(bloqueoRepository.findById(8L)).thenReturn(Optional.of(existente));
 
+            // Act
             service.eliminarBloqueo(usuario, ID_SERVICIO, 8L);
 
+            // Assert
             verify(bloqueoRepository).delete(existente);
         }
 
         @Test
         void deberiaRechazarUnBloqueoInexistente() {
+            // Arrange
             when(bloqueoRepository.findById(8L)).thenReturn(Optional.empty());
 
+            // Act + Assert
             assertEquals("BLOQUEO_NO_ENCONTRADO", codigo(() -> service.eliminarBloqueo(usuario, ID_SERVICIO, 8L)));
         }
 
         @Test
         void deberiaRechazarUnBloqueoQuePerteneceAOtraOferta() {
+            // Arrange
             OfertaServicio otraOferta = ServicioFixtures.oferta(proveedor, ServicioFixtures.tipoActivo(), "ACTIVO");
             otraOferta.setIdServicio(11L);
             BloqueoDisponibilidad existente = bloqueoExistente(
                     8L, otraOferta, LocalDate.now(), LocalTime.MIN, LocalTime.of(23, 59, 59));
             when(bloqueoRepository.findById(8L)).thenReturn(Optional.of(existente));
 
+            // Act + Assert
             assertEquals("BLOQUEO_NO_PERTENECE", codigo(() -> service.eliminarBloqueo(usuario, ID_SERVICIO, 8L)));
             verify(bloqueoRepository, never()).delete(any(BloqueoDisponibilidad.class));
         }
 
         @Test
         void deberiaRechazarEliminarBloqueosDeUnServicioAjeno() {
+            // Arrange
             when(ofertaRepository.findByIdServicioAndEstado(ID_SERVICIO, "ACTIVO"))
                     .thenReturn(Optional.of(ofertaDeOtroProveedor()));
 
+            // Act + Assert
             assertEquals("OFERTA_NO_PROPIA", codigo(() -> service.eliminarBloqueo(usuario, ID_SERVICIO, 8L)));
         }
     }

@@ -14,10 +14,13 @@ class EntidadesServicioTest {
 
     @Test
     void deberiaAsignarFechasYEstadoActivoPorDefectoAlCrearUnaOferta() {
+        // Arrange
         OfertaServicio oferta = new OfertaServicio();
 
+        // Act
         oferta.onCreate();
 
+        // Assert
         assertAll(
                 () -> assertNotNull(oferta.getFechaCreacion()),
                 () -> assertEquals(oferta.getFechaCreacion(), oferta.getFechaActualizacion()),
@@ -27,34 +30,43 @@ class EntidadesServicioTest {
 
     @Test
     void noDeberiaSobrescribirElEstadoDefinidoAlCrearUnaOferta() {
+        // Arrange
         OfertaServicio oferta = new OfertaServicio();
         oferta.setEstado("INACTIVO");
 
+        // Act
         oferta.onCreate();
 
+        // Assert
         assertEquals("INACTIVO", oferta.getEstado());
     }
 
     @Test
     void deberiaRefrescarLaFechaDeActualizacionAlModificarUnaOferta() {
+        // Arrange
         OfertaServicio oferta = new OfertaServicio();
         LocalDateTime antigua = LocalDateTime.of(2020, 1, 1, 0, 0);
         oferta.setFechaActualizacion(antigua);
 
+        // Act
         oferta.onUpdate();
 
+        // Assert
         assertTrue(oferta.getFechaActualizacion().isAfter(antigua));
     }
 
     @Test
     void deberiaUsarMotivoOtroPorDefectoAlPersistirUnBloqueo() {
+        // Arrange
         BloqueoDisponibilidad sinMotivo = new BloqueoDisponibilidad();
         BloqueoDisponibilidad conMotivo = new BloqueoDisponibilidad();
         conMotivo.setMotivo("RESERVADO");
 
+        // Act
         sinMotivo.onCreate();
         conMotivo.onCreate();
 
+        // Assert
         assertAll(
                 () -> assertEquals("OTRO", sinMotivo.getMotivo()),
                 () -> assertEquals("RESERVADO", conMotivo.getMotivo())
@@ -63,13 +75,20 @@ class EntidadesServicioTest {
 
     @Test
     void deberiaAsignarFechasAlCrearYActualizarUnProveedor() {
+        // Arrange
         Proveedor proveedor = new Proveedor();
 
+        // Act
         proveedor.onCreate();
+
+        // Assert
         LocalDateTime creada = proveedor.getFechaCreacion();
         proveedor.setFechaActualizacion(LocalDateTime.of(2020, 1, 1, 0, 0));
+
+        // Act
         proveedor.onUpdate();
 
+        // Assert
         assertAll(
                 () -> assertNotNull(creada),
                 () -> assertTrue(proveedor.getFechaActualizacion().isAfter(LocalDateTime.of(2020, 1, 1, 0, 0)))
@@ -78,6 +97,7 @@ class EntidadesServicioTest {
 
     @Test
     void deberiaExponerLosAtributosDeLosDatosDeCatalogo() {
+        // Arrange
         CategoriaServicio categoria = new CategoriaServicio();
         categoria.setIdCategoria(1L);
         categoria.setNombre("SALUD");
@@ -88,6 +108,7 @@ class EntidadesServicioTest {
         DisponibilidadServicio disponibilidad = new DisponibilidadServicio();
         disponibilidad.setDiaSemana("LUNES");
 
+        // Act + Assert
         assertAll(
                 () -> assertEquals("SALUD", tipo.getCategoria().getNombre()),
                 () -> assertEquals("Odontologia", tipo.getNombre()),

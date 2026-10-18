@@ -37,9 +37,11 @@ class CatalogoServicioControllerTest {
 
     @Test
     void deberiaResponder200ConLasCategoriasDelCatalogo() throws Exception {
+        // Arrange
         when(catalogoServicio.listarCategorias())
                 .thenReturn(List.of(new CategoriaCatalogoResponse(1L, "SALUD", "Servicios de salud")));
 
+        // Act + Assert
         mockMvc.perform(get("/api/catalogo/categorias"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].idCategoria").value(1))
@@ -48,9 +50,11 @@ class CatalogoServicioControllerTest {
 
     @Test
     void deberiaResponder200ConLosTiposDeServicio() throws Exception {
+        // Arrange
         when(catalogoServicio.listarTipos()).thenReturn(List.of(
                 new TipoServicioCatalogoResponse(2L, 1L, "SALUD", "Odontologia", "Cuidado dental")));
 
+        // Act + Assert
         mockMvc.perform(get("/api/catalogo/tipos-servicio"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].idTipoServicio").value(2))
@@ -59,9 +63,11 @@ class CatalogoServicioControllerTest {
 
     @Test
     void deberiaResponder200ConLosTiposDeUnaCategoria() throws Exception {
+        // Arrange
         when(catalogoServicio.listarTiposPorCategoria(1L)).thenReturn(List.of(
                 new TipoServicioCatalogoResponse(2L, 1L, "SALUD", "Odontologia", null)));
 
+        // Act + Assert
         mockMvc.perform(get("/api/catalogo/categorias/1/tipos-servicio"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(1))
@@ -70,8 +76,10 @@ class CatalogoServicioControllerTest {
 
     @Test
     void deberiaResponder200ConListaVaciaCuandoLaCategoriaNoTieneTipos() throws Exception {
+        // Arrange
         when(catalogoServicio.listarTiposPorCategoria(99L)).thenReturn(List.of());
 
+        // Act + Assert
         mockMvc.perform(get("/api/catalogo/categorias/99/tipos-servicio"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(0));

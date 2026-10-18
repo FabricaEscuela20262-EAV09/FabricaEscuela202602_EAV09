@@ -35,9 +35,13 @@ class GlobalExceptionHandlerEstadosHttpTest {
             "BLOQUEO_TRASLAPADO,400"
     })
     void deberiaMapearElCodigoDeNegocioAlEstadoHttpEsperado(String codigo, int estadoEsperado) {
-        ResponseEntity<ErrorResponse> respuesta =
-                handler.handleBusinessException(new BusinessException(codigo, "mensaje"));
+        // Arrange
+        BusinessException ex = new BusinessException(codigo, "mensaje");
 
+        // Act
+        ResponseEntity<ErrorResponse> respuesta = handler.handleBusinessException(ex);
+
+        // Assert
         assertEquals(estadoEsperado, respuesta.getStatusCode().value());
         assertEquals(codigo, respuesta.getBody().getCodigo());
     }

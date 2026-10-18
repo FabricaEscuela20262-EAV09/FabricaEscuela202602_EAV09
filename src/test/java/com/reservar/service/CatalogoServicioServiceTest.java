@@ -52,8 +52,10 @@ class CatalogoServicioServiceTest {
 
     @Test
     void deberiaRetornarListaVaciaCuandoNoHayCategoriasActivas() {
+        // Arrange
         when(categoriaRepository.findByEstado("ACTIVO")).thenReturn(List.of());
 
+        // Act + Assert
         assertTrue(service.listarCategorias().isEmpty());
     }
 
@@ -93,8 +95,10 @@ class CatalogoServicioServiceTest {
 
     @Test
     void deberiaRetornarListaVaciaCuandoLaCategoriaNoTieneTipos() {
+        // Arrange
         when(tipoRepository.findByCategoriaIdCategoriaAndEstado(99L, "ACTIVO")).thenReturn(List.of());
 
+        // Act + Assert
         assertTrue(service.listarTiposPorCategoria(99L).isEmpty());
     }
 }

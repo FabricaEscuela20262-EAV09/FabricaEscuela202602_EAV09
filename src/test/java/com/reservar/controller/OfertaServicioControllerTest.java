@@ -141,6 +141,7 @@ class OfertaServicioControllerTest {
 
     @Test
     void deberiaResponder400ConTodosLosCamposObligatoriosFaltantes() throws Exception {
+        // Act + Assert
         mockMvc.perform(post("/api/ofertas").contentType(MediaType.APPLICATION_JSON).content("{}"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.errores.length()").value(5));
@@ -161,9 +162,11 @@ class OfertaServicioControllerTest {
 
     @Test
     void deberiaResponder400CuandoLaCuentaDelProveedorNoEstaActiva() throws Exception {
+        // Arrange
         when(ofertaServicio.crearOferta(any(), any())).thenThrow(
                 new BusinessException("PROVEEDOR_NO_ACTIVO", "Debes tener la cuenta activa para gestionar ofertas."));
 
+        // Act + Assert
         mockMvc.perform(post("/api/ofertas").contentType(MediaType.APPLICATION_JSON).content(VALIDO))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.codigo").value("PROVEEDOR_NO_ACTIVO"));
@@ -193,8 +196,10 @@ class OfertaServicioControllerTest {
 
     @Test
     void deberiaResponder401CuandoElPrincipalNoEsUnUsuarioDelSistema() throws Exception {
+        // Arrange
         autenticarComo("anonymousUser");
 
+        // Act + Assert
         mockMvc.perform(put("/api/ofertas/10").contentType(MediaType.APPLICATION_JSON).content(VALIDO))
                 .andExpect(status().isUnauthorized());
         verifyNoInteractions(ofertaServicio);
@@ -214,9 +219,11 @@ class OfertaServicioControllerTest {
 
     @Test
     void deberiaResponder403CuandoSeEditaUnaOfertaAjena() throws Exception {
+        // Arrange
         when(ofertaServicio.actualizarOferta(any(), eq(10L), any())).thenThrow(
                 new BusinessException("OFERTA_NO_PROPIA", "No tienes permiso para modificar esta oferta."));
 
+        // Act + Assert
         mockMvc.perform(put("/api/ofertas/10").contentType(MediaType.APPLICATION_JSON).content(VALIDO))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.codigo").value("OFERTA_NO_PROPIA"));
@@ -224,17 +231,21 @@ class OfertaServicioControllerTest {
 
     @Test
     void deberiaResponder404CuandoSeEditaUnaOfertaInexistente() throws Exception {
+        // Arrange
         when(ofertaServicio.actualizarOferta(any(), eq(999L), any())).thenThrow(
                 new BusinessException("OFERTA_NO_ENCONTRADA", "La oferta indicada no existe."));
 
+        // Act + Assert
         mockMvc.perform(put("/api/ofertas/999").contentType(MediaType.APPLICATION_JSON).content(VALIDO))
                 .andExpect(status().isNotFound());
     }
 
     @Test
     void deberiaResponder400CuandoLaEdicionTieneDuracionNoPositiva() throws Exception {
+        // Arrange
         String body = VALIDO.replace("\"duracionMinutos\":45", "\"duracionMinutos\":0");
 
+        // Act + Assert
         mockMvc.perform(put("/api/ofertas/10").contentType(MediaType.APPLICATION_JSON).content(body))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.errores[0]")
@@ -243,6 +254,7 @@ class OfertaServicioControllerTest {
 
     @Test
     void deberiaResponder204CuandoSeDesactivaUnaOfertaPropia() throws Exception {
+        // Act + Assert
         mockMvc.perform(patch("/api/ofertas/10/desactivar"))
                 .andExpect(status().isNoContent());
 
@@ -251,17 +263,21 @@ class OfertaServicioControllerTest {
 
     @Test
     void deberiaResponder403CuandoSeDesactivaUnaOfertaAjena() throws Exception {
+        // Arrange
         doThrow(new BusinessException("OFERTA_NO_PROPIA", "No tienes permiso para modificar esta oferta."))
                 .when(ofertaServicio).desactivarOferta(any(), eq(10L));
 
+        // Act + Assert
         mockMvc.perform(patch("/api/ofertas/10/desactivar"))
                 .andExpect(status().isForbidden());
     }
 
     @Test
     void deberiaResponder401CuandoSeDesactivaSinSesion() throws Exception {
+        // Arrange
         SecurityContextHolder.clearContext();
 
+        // Act + Assert
         mockMvc.perform(patch("/api/ofertas/10/desactivar"))
                 .andExpect(status().isUnauthorized());
         verifyNoInteractions(ofertaServicio);
@@ -284,9 +300,11 @@ class OfertaServicioControllerTest {
 
     @Test
     void deberiaResponder404ConMensajeClaroCuandoElServicioNoEstaDisponible() throws Exception {
+        // Arrange
         when(ofertaServicio.obtenerDetalle(5L)).thenThrow(new BusinessException(
                 "OFERTA_NO_DISPONIBLE", "Servicio no disponible. La oferta no existe o no está activa."));
 
+        // Act + Assert
         mockMvc.perform(get("/api/ofertas/5"))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.codigo").value("OFERTA_NO_DISPONIBLE"))
@@ -333,9 +351,11 @@ class OfertaServicioControllerTest {
 
     @Test
     void deberiaResponder400CuandoLaCategoriaDelFiltroNoExiste() throws Exception {
+        // Arrange
         when(ofertaServicio.buscarOfertas(any(), eq(404L), any())).thenThrow(
                 new BusinessException("CATEGORIA_NO_ENCONTRADA", "La categoría indicada no existe."));
 
+        // Act + Assert
         mockMvc.perform(get("/api/ofertas?idCategoria=404"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.codigo").value("CATEGORIA_NO_ENCONTRADA"));
@@ -368,8 +388,10 @@ class OfertaServicioControllerTest {
 
     @Test
     void deberiaResponder401AlListarOfertasPropiasSinSesion() throws Exception {
+        // Arrange
         SecurityContextHolder.clearContext();
 
+        // Act + Assert
         mockMvc.perform(get("/api/ofertas/mis-ofertas")).andExpect(status().isUnauthorized());
         mockMvc.perform(get("/api/ofertas/mis-ofertas/historial")).andExpect(status().isUnauthorized());
         verifyNoInteractions(ofertaServicio);

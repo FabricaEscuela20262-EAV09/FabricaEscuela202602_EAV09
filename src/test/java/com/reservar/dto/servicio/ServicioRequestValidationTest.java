@@ -72,24 +72,30 @@ class ServicioRequestValidationTest {
 
     @Test
     void deberiaAceptarUnaSolicitudDePublicacionCompleta() {
+        // Act + Assert
         assertTrue(validator.validate(crearValido()).isEmpty());
     }
 
     @Test
     void deberiaAceptarUnaPublicacionRemotaSinUbicacion() {
+        // Arrange
         CrearOfertaRequest request = crearValido();
         request.setModalidad("REMOTO");
         request.setUbicacion(null);
 
+        // Act + Assert
         assertTrue(validator.validate(request).isEmpty());
     }
 
     @Test
     void deberiaSenalarCadaCampoObligatorioVacioEnLaPublicacion() {
+        // Arrange
         CrearOfertaRequest request = new CrearOfertaRequest();
 
+        // Act
         Set<ConstraintViolation<CrearOfertaRequest>> violaciones = validator.validate(request);
 
+        // Assert
         assertEquals(
                 Set.of("idTipoServicio", "nombre", "descripcion", "duracionMinutos", "modalidad"),
                 campos(violaciones));
@@ -132,8 +138,11 @@ class ServicioRequestValidationTest {
 
     @Test
     void deberiaRechazarNombreMayorA150CaracteresYAceptarExactamente150() {
+        // Arrange
         CrearOfertaRequest request = crearValido();
         request.setNombre("a".repeat(150));
+
+        // Act + Assert
         assertTrue(validator.validate(request).isEmpty());
 
         request.setNombre("a".repeat(151));
@@ -143,15 +152,18 @@ class ServicioRequestValidationTest {
 
     @Test
     void deberiaRechazarUbicacionMayorA255Caracteres() {
+        // Arrange
         CrearOfertaRequest request = crearValido();
         request.setUbicacion("u".repeat(256));
 
+        // Act + Assert
         assertEquals("La ubicación no puede superar 255 caracteres",
                 mensajeDe(validator.validate(request), "ubicacion"));
     }
 
     @Test
     void deberiaAplicarLasMismasReglasEnLaEdicion() {
+        // Act + Assert
         assertTrue(validator.validate(actualizarValido()).isEmpty());
 
         ActualizarOfertaRequest vacia = new ActualizarOfertaRequest();
@@ -170,10 +182,13 @@ class ServicioRequestValidationTest {
 
     @Test
     void deberiaValidarLosCamposObligatoriosDeUnaFranjaSemanal() {
+        // Arrange
         DisponibilidadRequest request = new DisponibilidadRequest();
 
+        // Act
         Set<ConstraintViolation<DisponibilidadRequest>> violaciones = validator.validate(request);
 
+        // Assert
         assertEquals(Set.of("diaSemana", "horaInicio", "horaFin"), campos(violaciones));
         assertEquals("Debe ingresar el día de la semana", mensajeDe(violaciones, "diaSemana"));
         assertEquals("Debe ingresar la hora de inicio del servicio", mensajeDe(violaciones, "horaInicio"));
@@ -182,17 +197,22 @@ class ServicioRequestValidationTest {
 
     @Test
     void deberiaAceptarUnaFranjaSemanalCompleta() {
+        // Arrange
         DisponibilidadRequest request = new DisponibilidadRequest();
         request.setDiaSemana("LUNES");
         request.setHoraInicio(LocalTime.of(9, 0));
         request.setHoraFin(LocalTime.of(12, 0));
 
+        // Act + Assert
         assertTrue(validator.validate(request).isEmpty());
     }
 
     @Test
     void deberiaExigirSoloLaFechaEnUnBloqueo() {
+        // Arrange
         BloqueoDisponibilidadRequest sinFecha = new BloqueoDisponibilidadRequest();
+
+        // Act + Assert
         assertEquals(Set.of("fecha"), campos(validator.validate(sinFecha)));
 
         BloqueoDisponibilidadRequest conFecha = new BloqueoDisponibilidadRequest();
