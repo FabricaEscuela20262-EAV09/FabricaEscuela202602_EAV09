@@ -230,6 +230,35 @@ class AuthControllerTest {
     }
 
     @Test
+    void deberiaResponderMensajeGenericoCuandoSeSolicitaElReenvioDeVerificacion() throws Exception {
+        // Arrange (HU-04 escenario 4: la respuesta no revela si la cuenta existe)
+        String body = """
+                {"correo":"ana@correo.com"}
+                """;
+
+        // Act + Assert
+        mockMvc.perform(post("/api/auth/verificar/reenviar").contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isOk())
+                .andExpect(content().string(
+                        "Si la cuenta existe y tiene verificación pendiente, "
+                                + "se enviarán las instrucciones correspondientes."));
+        verify(authService).reenviarVerificacion("ana@correo.com");
+    }
+
+    @Test
+    void deberiaResponder400SinLlamarAlServicioCuandoElCorreoDelReenvioEsInvalido() throws Exception {
+        // Arrange
+        String body = """
+                {"correo":"no-es-correo"}
+                """;
+
+        // Act + Assert
+        mockMvc.perform(post("/api/auth/verificar/reenviar").contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isBadRequest());
+        verifyNoInteractions(authService);
+    }
+
+    @Test
     void deberiaResponderMensajeGenericoCuandoSeSolicitaRecuperacion() throws Exception {
         // Arrange
         String body = """

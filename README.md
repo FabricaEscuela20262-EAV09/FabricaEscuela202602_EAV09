@@ -10,6 +10,24 @@
  
 ---
 
+## Cómo ejecutar el proyecto y las pruebas
+
+Requisitos: JDK 17 o superior. No hace falta instalar Maven (se usa el wrapper `mvnw`).
+
+1. Copiar `.env.example` como `.env` (está en `.gitignore`) o exportar las variables en el sistema / IDE:
+
+   | Variable | Uso |
+   |---|---|
+   | `DB_USER`, `DB_PWORD` | Usuario y contraseña de PostgreSQL (Neon) |
+   | `MAIL_USER`, `MAIL_PWORD` | Cuenta Gmail SMTP (contraseña de aplicación) para los correos de verificación y recuperación |
+   | `SONAR_TOKEN` | Solo en GitHub Actions (secret) para el análisis SonarCloud |
+
+2. Pruebas + cobertura + regla JaCoCo: `./mvnw verify` (reporte en `target/site/jacoco/index.html`).
+   Sin `DB_USER`, la prueba de integración `ReservarApplicationTests` se omite y el resto del suite (unitario) corre igual.
+3. Levantar la API: `./mvnw spring-boot:run` (puerto 8080).
+
+---
+
 ## 1. Introducción
 
 Reservar es una API REST para la gestión de reservas entre **clientes** y **proveedores de servicios**.
