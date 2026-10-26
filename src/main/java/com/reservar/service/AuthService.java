@@ -318,13 +318,13 @@ public class AuthService {
         tokenRepository.save(tokenEntity);
     }
 
-    // INVALIDAR TOKENS DE VERIFICACIÓN ANTERIORES
-    private void invalidarTokensVerificacion(UUID idUsuario) {
+    // INVALIDAR TOKENS ANTERIORES DE UN TIPO (VERIFICACIÓN O RECUPERACIÓN)
+    private void invalidarTokens(UUID idUsuario, TipoToken tipo) {
 
         List<Token> tokens = tokenRepository
                 .findByUsuarioIdUsuarioAndTipoAndFechaUsoIsNull(
                         idUsuario,
-                        TipoToken.VERIFICACION
+                        tipo
                 );
 
         LocalDateTime ahora = LocalDateTime.now();
@@ -357,7 +357,7 @@ public class AuthService {
         }
 
         // Invalidar los tokens anteriores de verificación.
-        invalidarTokensVerificacion(usuario.getIdUsuario());
+        invalidarTokens(usuario.getIdUsuario(), TipoToken.VERIFICACION);
 
         // Crear y enviar un nuevo token con 24 horas de validez.
         crearTokenVerificacion(usuario);
@@ -378,6 +378,8 @@ public class AuthService {
          * si no,simplemente no hacemos nada, pero el controller siempre responde el mismo mensaje genérico.
          */
         if (usuario != null) {
+            // Solo el último enlace de recuperación queda vigente.
+            invalidarTokens(usuario.getIdUsuario(), TipoToken.RECUPERACION);
             crearTokenRecuperacion(usuario);
         }
     }

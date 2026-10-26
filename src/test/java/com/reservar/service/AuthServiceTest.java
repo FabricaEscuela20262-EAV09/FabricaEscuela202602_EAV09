@@ -716,7 +716,88 @@ class AuthServiceTest {
     // ================================================================ HU-05 recuperación
 
     @Nested
+    class ReenviarVerificacion {
+
+        @Test
+        void deberiaInvalidarTokensAnterioresYEnviarNuevoEnlaceQueExpiraEn24HorasCuandoLaCuentaEstaPendiente() {
+            // Arrange (HU-04 escenario 4)
+            Usuario usuario = usuario(EstadoUsuario.PENDIENTE, Rol.CLIENTE);
+            Token anterior = token(usuario, TipoToken.VERIFICACION, LocalDateTime.now().minusHours(1));
+            when(usuarioRepository.findByCorreo("ana@correo.com")).thenReturn(Optional.of(usuario));
+            when(tokenRepository.findByUsuarioIdUsuarioAndTipoAndFechaUsoIsNull(ID_USUARIO, TipoToken.VERIFICACION))
+                    .thenReturn(List.of(anterior));
+            ArgumentCaptor<Token> tokenCaptor = ArgumentCaptor.forClass(Token.class);
+            ArgumentCaptor<String> enlaceCaptor = ArgumentCaptor.forClass(String.class);
+
+            // Act
+            authService.reenviarVerificacion("  ana@correo.com  ");
+
+            // Assert
+            verify(tokenRepository).saveAll(List.of(anterior));
+            verify(tokenRepository).save(tokenCaptor.capture());
+            verify(emailService).enviarCorreoVerificacion(eq("ana@correo.com"), enlaceCaptor.capture(), any());
+            Token nuevo = tokenCaptor.getValue();
+            String prefijo = BACKEND_URL + "/api/auth/verificar/";
+            String tokenPlano = enlaceCaptor.getValue().substring(prefijo.length());
+            assertAll(
+                    () -> assertNotNull(anterior.getFechaUso()),
+                    () -> assertTrue(enlaceCaptor.getValue().startsWith(prefijo)),
+                    () -> assertEquals(TipoToken.VERIFICACION, nuevo.getTipo()),
+                    () -> assertEquals(TokenHasher.hash(tokenPlano), nuevo.getHashToken()),
+                    () -> assertCercaDe(LocalDateTime.now().plusHours(24), nuevo.getFechaExpiracion()),
+                    () -> assertEquals(EstadoUsuario.PENDIENTE, usuario.getEstado())
+            );
+        }
+
+        @Test
+        void deberiaTerminarSinErrorNiEnviarCorreoCuandoElCorreoNoExiste() {
+            // Arrange (no revela si el correo está registrado)
+            when(usuarioRepository.findByCorreo("nadie@correo.com")).thenReturn(Optional.empty());
+
+            // Act
+            authService.reenviarVerificacion("nadie@correo.com");
+
+            // Assert
+            verifyNoInteractions(tokenRepository, emailService);
+        }
+
+        @ParameterizedTest
+        @ValueSource(strings = {"ACTIVO", "INACTIVO"})
+        void deberiaTerminarSinErrorNiEnviarCorreoCuandoLaCuentaNoEstaPendiente(String estado) {
+            // Arrange (valor parametrizado)
+            Usuario usuario = usuario(EstadoUsuario.valueOf(estado), Rol.CLIENTE);
+            when(usuarioRepository.findByCorreo("ana@correo.com")).thenReturn(Optional.of(usuario));
+
+            // Act
+            authService.reenviarVerificacion("ana@correo.com");
+
+            // Assert
+            verifyNoInteractions(tokenRepository, emailService);
+        }
+    }
+
+    @Nested
     class SolicitarRecuperacion {
+
+        @Test
+        void deberiaInvalidarLosTokensDeRecuperacionAnterioresAntesDeCrearUnoNuevo() {
+            // Arrange (solo el último enlace de recuperación queda vigente)
+            Usuario usuario = usuario(EstadoUsuario.ACTIVO, Rol.CLIENTE);
+            Token anterior = token(usuario, TipoToken.RECUPERACION, LocalDateTime.now().plusMinutes(30));
+            when(usuarioRepository.findByCorreo("ana@correo.com")).thenReturn(Optional.of(usuario));
+            when(tokenRepository.findByUsuarioIdUsuarioAndTipoAndFechaUsoIsNull(ID_USUARIO, TipoToken.RECUPERACION))
+                    .thenReturn(List.of(anterior));
+
+            // Act
+            authService.solicitarRecuperacion("ana@correo.com");
+
+            // Assert
+            assertAll(
+                    () -> assertNotNull(anterior.getFechaUso()),
+                    () -> verify(tokenRepository).saveAll(List.of(anterior)),
+                    () -> verify(tokenRepository).save(any(Token.class))
+            );
+        }
 
         @Test
         void deberiaEnviarEnlaceAlFrontendConTokenQueExpiraEn1HoraCuandoElCorreoExiste() {
