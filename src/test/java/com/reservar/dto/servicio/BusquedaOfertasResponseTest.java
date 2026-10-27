@@ -36,10 +36,13 @@ class BusquedaOfertasResponseTest {
 
     @Test
     void deberiaExponerElMensajeInformativoCuandoNoHayResultados() {
+        // Arrange
         PageImpl<OfertaServicioResponse> vacia = new PageImpl<>(List.of(), PageRequest.of(0, 10), 0);
 
+        // Act
         BusquedaOfertasResponse respuesta = new BusquedaOfertasResponse(vacia, "Sin resultados");
 
+        // Assert
         assertAll(
                 () -> assertTrue(respuesta.getContent().isEmpty()),
                 () -> assertEquals("Sin resultados", respuesta.getMensaje())
@@ -48,6 +51,7 @@ class BusquedaOfertasResponseTest {
 
     @Test
     void deberiaInicializarLasProximasDisponibilidadesComoListaVacia() {
+        // Act + Assert
         assertTrue(new OfertaServicioResponse().getProximasDisponibilidades().isEmpty());
     }
 }

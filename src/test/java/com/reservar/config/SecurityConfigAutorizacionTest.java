@@ -64,9 +64,11 @@ class SecurityConfigAutorizacionTest {
 
     @Test
     void deberiaPermitirSinSesionLasConsultasPublicas() throws Exception {
+        // Act
         when(ofertaServicio.buscarOfertas(any(), any(), any())).thenReturn(
                 new BusquedaOfertasResponse(new PageImpl<>(List.of(), PageRequest.of(0, 10), 0), "vacío"));
 
+        // Act + Assert
         mockMvc.perform(get("/api/ofertas")).andExpect(status().isOk());
         mockMvc.perform(get("/api/ofertas/10")).andExpect(status().isOk());
         mockMvc.perform(get("/api/ofertas/10/disponibilidad")).andExpect(status().isOk());
@@ -77,6 +79,7 @@ class SecurityConfigAutorizacionTest {
 
     @Test
     void deberiaResponder401EnLasOperacionesDeEscrituraSinSesion() throws Exception {
+        // Act + Assert
         mockMvc.perform(post("/api/ofertas").contentType(MediaType.APPLICATION_JSON).content(JSON_OFERTA))
                 .andExpect(status().isUnauthorized());
         mockMvc.perform(put("/api/ofertas/10").contentType(MediaType.APPLICATION_JSON).content(JSON_OFERTA))
@@ -94,27 +97,32 @@ class SecurityConfigAutorizacionTest {
 
     @Test
     void deberiaResponder401AlConsultarLasOfertasPropiasSinSesion() throws Exception {
+        // Act + Assert
         mockMvc.perform(get("/api/ofertas/mis-ofertas")).andExpect(status().isUnauthorized());
         mockMvc.perform(get("/api/ofertas/mis-ofertas/historial")).andExpect(status().isUnauthorized());
     }
 
     @Test
     void deberiaResponder401CuandoElBearerTokenNoCorrespondeAUnaSesionVigente() throws Exception {
+        // Arrange
         when(sesionRepository.findByHashTokenAndFechaRevocacionIsNullAndFechaExpiracionAfter(any(), any()))
                 .thenReturn(Optional.empty());
 
+        // Act + Assert
         mockMvc.perform(patch("/api/ofertas/10/desactivar").header("Authorization", "Bearer invalido"))
                 .andExpect(status().isUnauthorized());
     }
 
     @Test
     void deberiaDejarPasarAlControladorCuandoHayUnaSesionVigente() throws Exception {
+        // Arrange
         Sesion sesion = new Sesion();
         sesion.setUsuario(ServicioFixtures.proveedorActivo());
         sesion.setFechaExpiracion(LocalDateTime.now().plusHours(1));
         when(sesionRepository.findByHashTokenAndFechaRevocacionIsNullAndFechaExpiracionAfter(any(), any()))
                 .thenReturn(Optional.of(sesion));
 
+        // Act + Assert
         mockMvc.perform(patch("/api/ofertas/10/desactivar").header("Authorization", "Bearer valido"))
                 .andExpect(status().isNoContent());
     }
