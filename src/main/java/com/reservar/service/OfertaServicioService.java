@@ -31,6 +31,7 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.LocalDateTime;
 import java.time.Clock;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -164,7 +165,11 @@ public class OfertaServicioService {
 
         String textoNormalizado = (texto == null || texto.isBlank())
                 ? ""
-                : texto.trim().toLowerCase(Locale.ROOT);
+                : texto.trim()
+                .toLowerCase(Locale.ROOT)
+                .replace("\\", "\\\\")
+                .replace("%", "\\%")
+                .replace("_", "\\_");
 
         // Validar que la categoría exista y esté activa.
         if (idCategoria != null) {
@@ -496,10 +501,19 @@ public class OfertaServicioService {
                     );
                 }
 
-                // Construir las franjas que siguen disponibles.
+                // Construir únicamente las franjas donde cabe el servicio completo (BUG #20)
                 for (FranjaHoraria franja : franjas) {
-                    DisponibilidadResponse response =
-                            new DisponibilidadResponse();
+
+                    long duracionDisponible = Duration.between(
+                            franja.inicio(),
+                            franja.fin()
+                    ).toMinutes();
+
+                    if (duracionDisponible < oferta.getDuracionMinutos()) {
+                        continue;
+                    }
+
+                    DisponibilidadResponse response = new DisponibilidadResponse();
 
                     response.setIdServicio(idServicio);
                     response.setTipo("DISPONIBLE");

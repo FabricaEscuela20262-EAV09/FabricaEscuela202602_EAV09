@@ -49,7 +49,7 @@ import static org.mockito.Mockito.when;
 class OfertaServicioProximasFranjasTest {
 
     private static final ZoneId ZONA_COLOMBIA = ZoneId.of("America/Bogota");
-    private static final Clock RELOJ_FIJO = Clock.fixed(
+    private static final Clock CLOCK = Clock.fixed(
             Instant.parse("2026-11-06T01:00:00Z"), ZONA_COLOMBIA);
 
     private static final String[] DIAS = {
@@ -80,9 +80,9 @@ class OfertaServicioProximasFranjasTest {
 
     @BeforeEach
     void setUp() {
-        lenient().when(clock.instant()).thenReturn(RELOJ_FIJO.instant());
-        lenient().when(clock.getZone()).thenReturn(RELOJ_FIJO.getZone());
-        hoy = LocalDate.now(RELOJ_FIJO);
+        lenient().when(clock.instant()).thenReturn(CLOCK.instant());
+        lenient().when(clock.getZone()).thenReturn(CLOCK.getZone());
+        hoy = LocalDate.now(CLOCK);
         TipoServicio tipo = ServicioFixtures.tipoActivo();
         OfertaServicio oferta = ServicioFixtures.oferta(
                 ServicioFixtures.proveedor(ServicioFixtures.ID_PROVEEDOR, ServicioFixtures.proveedorActivo()),
@@ -139,7 +139,7 @@ class OfertaServicioProximasFranjasTest {
 
     /** Evita resultados inestables cuando la prueba corre justo alrededor de la medianoche. */
     private static void assumeLejosDeMedianoche() {
-        LocalTime ahora = LocalTime.now(RELOJ_FIJO);
+        LocalTime ahora = LocalTime.now(CLOCK);
         assumeTrue(ahora.isAfter(LocalTime.of(0, 5)) && ahora.isBefore(LocalTime.of(23, 50)));
     }
 
@@ -378,14 +378,14 @@ class OfertaServicioProximasFranjasTest {
     void deberiaConservarLaHoraDeInicioCuandoLaFranjaDeHoyAunNoComienza() {
         // Arrange
         assumeLejosDeMedianoche();
-        configurar(List.of(horario(nombreDia(hoy), LocalTime.of(23, 55), LocalTime.of(23, 59))), List.of());
+        configurar(List.of(horario(nombreDia(hoy), LocalTime.of(22, 30), LocalTime.of(23, 59))), List.of());
 
         // Act
         List<DisponibilidadResponse> deHoy = franjasDeFecha(service.obtenerDetalle(ID_SERVICIO), hoy);
 
         // Assert
         assertEquals(1, deHoy.size());
-        assertEquals(LocalTime.of(23, 55), deHoy.get(0).getHoraInicio());
+        assertEquals(LocalTime.of(22, 30), deHoy.get(0).getHoraInicio());
     }
 
     @Test

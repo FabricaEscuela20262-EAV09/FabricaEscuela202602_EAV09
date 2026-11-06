@@ -6,6 +6,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -63,6 +64,22 @@ public class GlobalExceptionHandler {
         ErrorResponse response = new ErrorResponse(
                 "DATOS_INVALIDOS",
                 ex.getMessage(),
+                LocalDateTime.now(),
+                null
+        );
+
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(response);
+    }
+
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<ErrorResponse> handleTypeMismatch(
+            MethodArgumentTypeMismatchException ex) {
+
+        ErrorResponse response = new ErrorResponse(
+                "PARAMETRO_INVALIDO",
+                "El identificador del servicio no es válido.",
                 LocalDateTime.now(),
                 null
         );

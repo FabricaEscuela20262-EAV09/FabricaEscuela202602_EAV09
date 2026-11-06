@@ -33,19 +33,19 @@ public interface OfertaServicioRepository
     );
 
     @Query("""
-        SELECT o
-        FROM OfertaServicio o JOIN o.tipoServicio t JOIN t.categoria c
-        WHERE o.estado = 'ACTIVO' AND t.estado = 'ACTIVO' AND c.estado = 'ACTIVO'
-          AND (
-              :texto = ''
-              OR LOWER(o.nombre) LIKE LOWER(CONCAT('%', :texto, '%'))
-              OR LOWER(o.descripcion) LIKE LOWER(CONCAT('%', :texto, '%'))
-          )
-          AND (
-              :idCategoria IS NULL
-              OR c.idCategoria = :idCategoria
-          )
-        """)
+    SELECT o
+    FROM OfertaServicio o JOIN o.tipoServicio t JOIN t.categoria c
+    WHERE o.estado = 'ACTIVO' AND t.estado = 'ACTIVO' AND c.estado = 'ACTIVO'
+      AND (
+          :texto = ''
+          OR LOWER(o.nombre) LIKE LOWER(CONCAT('%', :texto, '%')) ESCAPE '\\'
+          OR LOWER(o.descripcion) LIKE LOWER(CONCAT('%', :texto, '%')) ESCAPE '\\'
+      )
+      AND (
+          :idCategoria IS NULL
+          OR c.idCategoria = :idCategoria
+      )
+    """)
     Page<OfertaServicio> buscarOfertasActivas(
             @Param("texto") String texto,
             @Param("idCategoria") Long idCategoria,
