@@ -12,6 +12,7 @@ import com.reservar.repository.DisponibilidadServicioRepository;
 import com.reservar.repository.OfertaServicioRepository;
 import com.reservar.repository.ProveedorRepository;
 import com.reservar.repository.TipoServicioRepository;
+import com.reservar.repository.ReservaRepository;
 import com.reservar.support.ServicioFixtures;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -20,9 +21,12 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.time.Clock;
 import java.time.DayOfWeek;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -34,6 +38,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.when;
 
 /**
@@ -42,6 +47,10 @@ import static org.mockito.Mockito.when;
  */
 @ExtendWith(MockitoExtension.class)
 class OfertaServicioProximasFranjasTest {
+
+    private static final ZoneId ZONA_COLOMBIA = ZoneId.of("America/Bogota");
+    private static final Clock RELOJ_FIJO = Clock.fixed(
+            Instant.parse("2026-11-06T01:00:00Z"), ZONA_COLOMBIA);
 
     private static final String[] DIAS = {
             "LUNES", "MARTES", "MIERCOLES", "JUEVES", "VIERNES", "SABADO", "DOMINGO"};
@@ -58,6 +67,11 @@ class OfertaServicioProximasFranjasTest {
     private DisponibilidadServicioRepository disponibilidadRepository;
     @Mock
     private BloqueoDisponibilidadRepository bloqueoRepository;
+    @Mock
+    private ReservaRepository reservaRepository;
+
+    @Mock
+    private Clock clock;
 
     @InjectMocks
     private OfertaServicioService service;
@@ -66,7 +80,9 @@ class OfertaServicioProximasFranjasTest {
 
     @BeforeEach
     void setUp() {
-        hoy = LocalDate.now();
+        lenient().when(clock.instant()).thenReturn(RELOJ_FIJO.instant());
+        lenient().when(clock.getZone()).thenReturn(RELOJ_FIJO.getZone());
+        hoy = LocalDate.now(RELOJ_FIJO);
         TipoServicio tipo = ServicioFixtures.tipoActivo();
         OfertaServicio oferta = ServicioFixtures.oferta(
                 ServicioFixtures.proveedor(ServicioFixtures.ID_PROVEEDOR, ServicioFixtures.proveedorActivo()),
@@ -123,7 +139,7 @@ class OfertaServicioProximasFranjasTest {
 
     /** Evita resultados inestables cuando la prueba corre justo alrededor de la medianoche. */
     private static void assumeLejosDeMedianoche() {
-        LocalTime ahora = LocalTime.now();
+        LocalTime ahora = LocalTime.now(RELOJ_FIJO);
         assumeTrue(ahora.isAfter(LocalTime.of(0, 5)) && ahora.isBefore(LocalTime.of(23, 50)));
     }
 

@@ -33,6 +33,9 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.List;
 import java.util.Optional;
+import java.time.Clock;
+import java.time.Instant;
+import java.time.ZoneId;
 
 import static com.reservar.support.ServicioFixtures.ID_SERVICIO;
 import static org.junit.jupiter.api.Assertions.assertAll;
@@ -53,6 +56,14 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class DisponibilidadServicioGestionTest {
 
+    private static final ZoneId ZONA_COLOMBIA =
+            ZoneId.of("America/Bogota");
+
+    private static final Clock CLOCK = Clock.fixed(
+            Instant.parse("2026-11-06T01:00:00Z"),
+            ZONA_COLOMBIA
+    );
+
     @Mock
     private DisponibilidadServicioRepository disponibilidadRepository;
     @Mock
@@ -61,6 +72,8 @@ class DisponibilidadServicioGestionTest {
     private OfertaServicioRepository ofertaRepository;
     @Mock
     private ProveedorRepository proveedorRepository;
+    @Mock
+    private Clock clock;
 
     @InjectMocks
     private DisponibilidadServicioService service;
@@ -83,6 +96,11 @@ class DisponibilidadServicioGestionTest {
                 .thenAnswer(invocacion -> invocacion.getArgument(0));
         lenient().when(bloqueoRepository.save(any(BloqueoDisponibilidad.class)))
                 .thenAnswer(invocacion -> invocacion.getArgument(0));
+        lenient().when(clock.instant())
+                .thenReturn(CLOCK.instant());
+
+        lenient().when(clock.getZone())
+                .thenReturn(CLOCK.getZone());
     }
 
     private static String codigo(Runnable accion) {

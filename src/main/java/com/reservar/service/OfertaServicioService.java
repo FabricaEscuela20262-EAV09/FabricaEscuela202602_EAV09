@@ -1,5 +1,8 @@
 package com.reservar.service;
 
+import com.reservar.entity.Reserva;
+import com.reservar.entity.enums.EstadoReserva;
+import com.reservar.repository.ReservaRepository;
 import com.reservar.dto.servicio.ActualizarOfertaRequest;
 import com.reservar.dto.servicio.BusquedaOfertasResponse;
 import com.reservar.dto.servicio.CrearOfertaRequest;
@@ -26,6 +29,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.time.LocalDateTime;
+import java.time.Clock;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -45,6 +50,8 @@ public class OfertaServicioService {
     private final CategoriaServicioRepository categoriaRepository;
     private final DisponibilidadServicioRepository disponibilidadRepository;
     private final BloqueoDisponibilidadRepository bloqueoRepository;
+    private final ReservaRepository reservaRepository;
+    private final Clock clock;
 
     public OfertaServicioService(
             OfertaServicioRepository ofertaRepository,
@@ -52,7 +59,9 @@ public class OfertaServicioService {
             TipoServicioRepository tipoServicioRepository,
             CategoriaServicioRepository categoriaRepository,
             DisponibilidadServicioRepository disponibilidadRepository,
-            BloqueoDisponibilidadRepository bloqueoRepository) {
+            BloqueoDisponibilidadRepository bloqueoRepository,
+            ReservaRepository reservaRepository,
+            Clock clock) {
 
         this.ofertaRepository = ofertaRepository;
         this.proveedorRepository = proveedorRepository;
@@ -60,6 +69,8 @@ public class OfertaServicioService {
         this.categoriaRepository = categoriaRepository;
         this.disponibilidadRepository = disponibilidadRepository;
         this.bloqueoRepository = bloqueoRepository;
+        this.reservaRepository = reservaRepository;
+        this.clock = clock;
     }
 
     // CREAR NUEVA OFERTA DE SERVICIO
@@ -96,6 +107,14 @@ public class OfertaServicioService {
         Proveedor proveedor = obtenerProveedor(usuarioAutenticado);
 
         OfertaServicio oferta = obtenerOfertaPropia(idServicio, proveedor);
+
+        if (!"ACTIVO".equals(oferta.getEstado())) {
+            throw new BusinessException(
+                    "OFERTA_NO_DISPONIBLE",
+                    "No se puede editar una oferta que está inactiva."
+            );
+        }
+
         TipoServicio tipoServicio = obtenerTipoServicioActivo(request.getIdTipoServicio());
         oferta.setTipoServicio(tipoServicio);
 
@@ -391,13 +410,31 @@ public class OfertaServicioService {
     private List<DisponibilidadResponse> calcularProximasDisponibilidades(
             OfertaServicio oferta) {
 
-        LocalDate hoy = LocalDate.now();
+        LocalDate hoy = LocalDate.now(clock);
         LocalDate limite = hoy.plusDays(6);
         Long idServicio = oferta.getIdServicio();
-        List<DisponibilidadServicio> horarios = disponibilidadRepository.findByServicioIdServicio(idServicio);
-        List<BloqueoDisponibilidad> bloqueos = bloqueoRepository.findByServicioIdServicioAndFechaBetween(
-                        idServicio, hoy, limite);
+
+        List<DisponibilidadServicio> horarios =
+                disponibilidadRepository.findByServicioIdServicio(idServicio);
+
+        List<BloqueoDisponibilidad> bloqueos =
+                bloqueoRepository.findByServicioIdServicioAndFechaBetween(
+                        idServicio, hoy, limite
+                );
+
+        // Consultar reservas que ocupan horarios durante los próximos siete días.
+        LocalDateTime inicioRango = hoy.atStartOfDay();
+        LocalDateTime finRango = limite.plusDays(1).atStartOfDay();
+
+        List<Reserva> reservas = reservaRepository.findReservasActivasEnRango(
+                idServicio,
+                List.of(EstadoReserva.PENDIENTE, EstadoReserva.CONFIRMADA),
+                inicioRango,
+                finRango
+        );
+
         List<DisponibilidadResponse> resultado = new ArrayList<>();
+
         for (LocalDate fecha = hoy;
              !fecha.isAfter(limite);
              fecha = fecha.plusDays(1)) {
@@ -409,7 +446,12 @@ public class OfertaServicioService {
                     .filter(b -> b.getFecha().equals(fechaActual))
                     .toList();
 
+            List<Reserva> reservasDelDia = reservas.stream()
+                    .filter(r -> r.getFechaInicio().toLocalDate().equals(fechaActual))
+                    .toList();
+
             for (DisponibilidadServicio horario : horarios) {
+
                 if (!dia.equalsIgnoreCase(horario.getDiaSemana())) {
                     continue;
                 }
@@ -419,7 +461,7 @@ public class OfertaServicioService {
 
                 // No ofrecer horas que ya pasaron durante el día actual.
                 if (fecha.equals(hoy)) {
-                    LocalTime ahora = LocalTime.now()
+                    LocalTime ahora = LocalTime.now(clock)
                             .plusMinutes(1)
                             .withSecond(0)
                             .withNano(0);
@@ -436,14 +478,25 @@ public class OfertaServicioService {
                 List<FranjaHoraria> franjas = new ArrayList<>();
                 franjas.add(new FranjaHoraria(inicio, fin));
 
+                // Descontar los bloqueos de disponibilidad.
                 for (BloqueoDisponibilidad bloqueo : bloqueosDelDia) {
-                    franjas = descontarBloqueo(
+                    franjas = descontarIntervalo(
                             franjas,
                             bloqueo.getHoraInicio(),
                             bloqueo.getHoraFin()
                     );
                 }
 
+                // Descontar las reservas pendientes y confirmadas.
+                for (Reserva reserva : reservasDelDia) {
+                    franjas = descontarIntervalo(
+                            franjas,
+                            reserva.getFechaInicio().toLocalTime(),
+                            reserva.getFechaFin().toLocalTime()
+                    );
+                }
+
+                // Construir las franjas que siguen disponibles.
                 for (FranjaHoraria franja : franjas) {
                     DisponibilidadResponse response =
                             new DisponibilidadResponse();
@@ -462,14 +515,13 @@ public class OfertaServicioService {
 
         resultado.sort(
                 Comparator.comparing(DisponibilidadResponse::getFecha)
-                        .thenComparing(
-                                DisponibilidadResponse::getHoraInicio)
+                        .thenComparing(DisponibilidadResponse::getHoraInicio)
         );
 
         return resultado;
     }
 
-    private List<FranjaHoraria> descontarBloqueo(
+    private List<FranjaHoraria> descontarIntervalo(
             List<FranjaHoraria> franjas,
             LocalTime inicioBloqueo,
             LocalTime finBloqueo) {
@@ -480,21 +532,21 @@ public class OfertaServicioService {
             LocalTime inicio = franja.inicio();
             LocalTime fin = franja.fin();
 
-            // El bloqueo no se cruza con esta franja.
+            // El intervalo no se cruza con esta franja.
             if (!inicioBloqueo.isBefore(fin)
                     || !finBloqueo.isAfter(inicio)) {
                 resultado.add(franja);
                 continue;
             }
 
-            // Conservar la parte anterior al bloqueo.
+            // Conservar la parte anterior al intervalo ocupado.
             if (inicio.isBefore(inicioBloqueo)) {
                 resultado.add(
                         new FranjaHoraria(inicio, inicioBloqueo)
                 );
             }
 
-            // Conservar la parte posterior al bloqueo.
+            // Conservar la parte posterior al intervalo ocupado.
             if (finBloqueo.isBefore(fin)) {
                 resultado.add(
                         new FranjaHoraria(finBloqueo, fin)
