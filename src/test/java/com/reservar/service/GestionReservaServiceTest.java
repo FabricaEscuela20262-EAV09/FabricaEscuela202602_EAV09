@@ -112,13 +112,25 @@ class GestionReservaServiceTest {
         verify(historial).save(captor.capture());
         assertEquals(reserva.getCliente(), captor.getValue().getActor());
         assertEquals(estado, captor.getValue().getEstadoAnterior());
+        assertEquals(EstadoReserva.CANCELADA, captor.getValue().getEstadoNuevo());
+        assertEquals(LocalDateTime.now(clock), captor.getValue().getFechaCambio());
+        assertSame(reserva, captor.getValue().getReserva());
+        verify(reservas).save(reserva);
     }
 
     @Test void proveedorCancelaConfirmada() {
         reserva.setEstado(EstadoReserva.CONFIRMADA);
         when(reservas.findByIdParaActualizar(1L)).thenReturn(Optional.of(reserva));
         assertEquals(EstadoReserva.CANCELADA, service.cancelar(proveedor, 1L, "Imprevisto").getEstado());
-        verify(historial).save(any());
+        ArgumentCaptor<HistorialReserva> captor = ArgumentCaptor.forClass(HistorialReserva.class);
+        verify(historial).save(captor.capture());
+        assertAll(() -> assertSame(proveedor, captor.getValue().getActor()),
+                () -> assertEquals(EstadoReserva.CONFIRMADA, captor.getValue().getEstadoAnterior()),
+                () -> assertEquals(EstadoReserva.CANCELADA, captor.getValue().getEstadoNuevo()),
+                () -> assertEquals(LocalDateTime.now(clock), captor.getValue().getFechaCambio()),
+                () -> assertEquals("Imprevisto", captor.getValue().getMotivo()),
+                () -> assertSame(reserva, captor.getValue().getReserva()));
+        verify(reservas).save(reserva);
     }
 
     @Test void proveedorNoCancelaPendiente() {
@@ -156,6 +168,15 @@ class GestionReservaServiceTest {
                 .thenReturn(new org.springframework.data.domain.PageImpl<>(java.util.List.of(reserva)));
         assertEquals(1, service.historial(proveedor, EstadoReserva.CONFIRMADA, pageable).getTotalElements());
         verify(reservas).completarFinalizadas(EstadoReserva.CONFIRMADA, EstadoReserva.COMPLETADA, LocalDateTime.now(clock));
+    }
+
+    @Test void historialClienteUsaIdentidadDeSesionSinFiltro() {
+        var cliente = reserva.getCliente();
+        var pageable = org.springframework.data.domain.PageRequest.of(0, 10);
+        when(reservas.findHistorialPropio(cliente.getIdUsuario(), null, pageable))
+                .thenReturn(new org.springframework.data.domain.PageImpl<>(java.util.List.of(reserva)));
+        assertEquals(1L, service.historial(cliente, null, pageable).getContent().get(0).getIdReserva());
+        verify(reservas).findHistorialPropio(cliente.getIdUsuario(), null, pageable);
     }
 
     @Test void clienteConsultaDetallePropio() {

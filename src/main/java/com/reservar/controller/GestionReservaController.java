@@ -46,7 +46,7 @@ public class GestionReservaController {
                 request == null ? null : request.getMotivo()));
     }
 
-    @GetMapping
+    @GetMapping({"", "/historial"})
     public ResponseEntity<Page<ReservaResponse>> historial(@RequestParam(required = false) EstadoReserva estado,
             @PageableDefault(size = 10, sort = "fechaInicio", direction = Sort.Direction.DESC) Pageable pageable) {
         return ResponseEntity.ok(service.historial(obtenerUsuarioAutenticado(), estado, pageable));

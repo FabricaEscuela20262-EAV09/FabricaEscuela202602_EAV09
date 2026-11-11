@@ -349,7 +349,7 @@ La autorización se aplica de acuerdo con el tipo de operación y el rol del usu
 **Gestión, consultas y calificaciones (HU-12 a HU-15):**
 
 - Todas las rutas de reservas y calificaciones requieren un token de sesión válido y las operaciones comprueban que la cuenta esté activa.
-- Solo el proveedor dueño de la oferta puede confirmar o rechazar una reserva pendiente. El cliente dueño o ese proveedor pueden cancelar una reserva pendiente o confirmada que aún no haya finalizado.
+- Solo el proveedor dueño de la oferta puede confirmar o rechazar una reserva pendiente. El cliente dueño puede cancelar una reserva `PENDIENTE` o `CONFIRMADA`; el proveedor dueño solo puede cancelar una reserva `CONFIRMADA`. En ambos casos, la fecha de finalización debe ser futura.
 - Las consultas de listado, detalle y auditoría se limitan a las reservas en las que participa el usuario autenticado. No existe una consulta pública del historial.
 - Solo el cliente dueño puede crear o editar la calificación de una reserva `COMPLETADA`. La identidad no se recibe en el cuerpo de la petición.
 - Un participante ajeno recibe `403`; un recurso inexistente, `404`; una transición no permitida, `400`; una calificación duplicada, `409`.
@@ -400,12 +400,16 @@ La autorización se aplica de acuerdo con el tipo de operación y el rol del usu
 | `/api/reservas` | POST | Cliente autenticado | Crea una reserva `PENDIENTE`; valida oferta, fecha futura, disponibilidad y conflictos de horario. Responde `201` |
 | `/api/reservas/{idReserva}/confirmar` | PATCH | Proveedor activo dueño de la oferta | Solo desde `PENDIENTE`; responde `200` |
 | `/api/reservas/{idReserva}/rechazar` | PATCH | Proveedor activo dueño de la oferta | Solo desde `PENDIENTE`; cuerpo opcional con `motivo` de hasta 255 caracteres |
-| `/api/reservas/{idReserva}/cancelar` | PATCH | Cliente dueño o proveedor dueño, cuenta activa | Desde `PENDIENTE` o `CONFIRMADA`, antes de finalizar; motivo opcional |
-| `/api/reservas` | GET | Participante activo | Listado propio paginado; filtro opcional `estado`, parámetros `page`, `size`, `sort`; orden predeterminado `fechaInicio DESC` |
+| `/api/reservas/{idReserva}/cancelar` | PATCH | Cliente dueño o proveedor dueño, cuenta activa | Cliente: desde `PENDIENTE` o `CONFIRMADA`. Proveedor: solo desde `CONFIRMADA`. En ambos casos, `fechaFin` futura; motivo opcional |
+| `/api/reservas` o `/api/reservas/historial` | GET | Participante activo | Ambas rutas devuelven el mismo listado propio paginado; filtro opcional `estado`, parámetros `page`, `size`, `sort`; orden predeterminado `fechaInicio DESC` |
 | `/api/reservas/{idReserva}` | GET | Participante activo | Detalle privado de una reserva |
 | `/api/reservas/{idReserva}/historial` | GET | Participante activo | Auditoría de cambios, ordenada por fecha |
 | `/api/reservas/{idReserva}/calificacion` | POST | Cliente activo dueño de la reserva completada | `estrellas` de 1 a 5 y `comentario` opcional de hasta 500 caracteres; responde `201`, duplicado `409` |
 | `/api/reservas/{idReserva}/calificacion` | PUT | Cliente activo dueño de la reserva completada | Edita la calificación existente; responde `200`, inexistente `404` |
+
+`GET /api/reservas/historial` es un alias compatible del listado existente `GET /api/reservas`; no requiere ni acepta una identidad de otro usuario para ampliar su alcance. Se diferencia de `GET /api/reservas/{idReserva}/historial`, que devuelve la auditoría de una sola reserva y exige ser participante.
+
+**Criterio de HU-13 pendiente de acuerdo:** las tareas solicitan estados distintos según el actor, pero el dominio de estados de la BD admite únicamente `CANCELADA`. La implementación mantiene ese estado y registra el actor en auditoría; no se declara cumplida literalmente la distinción de estados hasta que el equipo acepte ese criterio o autorice una migración coordinada. No se ha modificado el esquema para introducir estados nuevos.
 
 El detalle público existente `GET /api/ofertas/{id}` incorpora `promedioCalificacion` y `numeroCalificaciones`, calculados por oferta, no como promedio global del proveedor. La finalización automática es una tarea interna: no se añade un endpoint para forzar `COMPLETADA`.
 
@@ -508,7 +512,7 @@ flowchart TD
 22. **Trazabilidad inicial:** al crear una reserva se registra su evento inicial en `HISTORIAL_RESERVA`, con estado anterior nulo y estado nuevo `PENDIENTE`.
 23. **Control de concurrencia:** la restricción de exclusión de PostgreSQL evita que dos solicitudes concurrentes registren reservas superpuestas para la misma oferta, incluso si ambas superan las validaciones previas del servicio.
 24. **Confirmación y rechazo (HU-12):** solo el proveedor dueño puede pasar una reserva `PENDIENTE` a `CONFIRMADA` o `RECHAZADA`. Una reserva rechazada deja de ocupar el horario.
-25. **Cancelación (HU-13):** el cliente dueño o el proveedor dueño pueden cancelar una reserva `PENDIENTE` o `CONFIRMADA` antes de su fecha de finalización. Se rechazan cancelaciones de reservas rechazadas, canceladas o completadas.
+25. **Cancelación (HU-13):** el cliente dueño puede cancelar una reserva `PENDIENTE` o `CONFIRMADA`; el proveedor dueño solo puede cancelar una reserva `CONFIRMADA`. En ambos casos, la fecha de finalización debe ser futura. Se rechazan cancelaciones de reservas rechazadas, canceladas o completadas. El estado resultante es `CANCELADA` para ambos actores; quién canceló queda registrado en la auditoría.
 26. **Auditoría manual atómica:** confirmar, rechazar y cancelar registra actor autenticado, estados, momento y motivo en la misma transacción que actualiza la reserva. No se elimina físicamente la reserva al liberar su horario.
 27. **Historial privado (HU-14):** cada participante consulta únicamente sus reservas; el listado es paginado y admite filtro por estado. El detalle y la auditoría también comprueban propiedad.
 28. **Finalización automática:** con la aplicación en ejecución, una tarea con `fixedDelay = 30000` actualiza a `COMPLETADA` las reservas `CONFIRMADA` cuya `fechaFin` ya llegó. Utiliza el `Clock` de `America/Bogota`; no existe un endpoint público para adelantar el estado.
@@ -572,7 +576,7 @@ Estas funcionalidades están implementadas en el código. La evidencia de prueba
 ### Pruebas y límites de validación
 
 - Se añadieron pruebas de servicios, controladores y autorización para gestión de reservas y calificaciones. Cubren transiciones, propiedad, restricciones de calificación y acceso sin sesión.
-- En la última ejecución local registrada durante la implementación se contabilizaron **420 pruebas: 418 aprobadas, 1 fallo preexistente y 1 omitida**. Las **63 pruebas añadidas** pasaron. Estos resultados no son una nueva ejecución ni garantizan el estado actual de CI.
+- Tras añadir el alias de historial se ejecutaron **88 pruebas seleccionadas de reservas, calificaciones, seguridad y ofertas: todas aprobadas**. La verificación completa local contabilizó **424 pruebas: 422 aprobadas, 1 fallo preexistente y 1 omitida**. Se añadieron cuatro casos nuevos y se reforzaron las comprobaciones de auditoría por actor y acceso sin sesión. Estos resultados no garantizan el estado actual de CI.
 - El fallo preexistente corresponde a `DisponibilidadServicioGestionTest.CrearBloqueo.deberiaRechazarFechasPasadas`: combina `LocalDate.now()` real con un `Clock` fijo. Se reportó sin modificarlo. La prueba omitida fue la carga del contexto con BD real por ausencia de `DB_USER`.
 - La integración real de persistencia y concurrencia de HU-12 a HU-15 y la ejecución completa de las pruebas funcionales tras la corrección de la espera en Postman siguen pendientes de verificación. No se declara una suite completamente aprobada ni una demo grabada.
 - Para probar calificaciones con datos nuevos, primero se confirma una reserva y se espera a que su `fechaFin` haya transcurrido y el proceso programado la marque `COMPLETADA`. No debe ejecutarse antes el intento de cancelar esa misma reserva: si aún está confirmada, la cancelación sería válida y bloquearía las pruebas posteriores de calificación.
