@@ -1,13 +1,13 @@
 # Arquitectura del sistema — Reservar
 
 **Proyecto:** Reservar. Plataforma de reservas (Fábrica Escuela EAV09).  
-**Alcance de este documento:** Épica 1 (Sprint 1), Épica 2 (Sprint 2) y avance de la Épica 3 (Sprint 3), correspondiente a la implementación de HU-11: Creación de reservas.  
+**Alcance de este documento:** Épica 1 (Sprint 1), Épica 2 (Sprint 2) y Épica 3 (Sprint 3), con la implementación de HU-11 a HU-15: creación, gestión, historial de reservas y calificaciones.<br/>
 **Stack:** Spring Boot 4.1 (Java 17), PostgreSQL (Neon), Spring Security, Spring Data JPA / Hibernate.  
-**Última actualización:** 2026-11-08 (implementación de HU-11: creación de reservas).
+**Última actualización:** 2026-11-10 (documentación de HU-11 a HU-15 y alcance técnico del Sprint 3).
 
 > Este documento no cubre frontend (no hay requerimiento de frontend en el proyecto) ni estrategia de despliegue. Se enfoca en la arquitectura y funcionalidades implementadas en el backend.
 >
-> La documentación conserva los componentes desarrollados en los Sprints 1 y 2 e incorpora los cambios correspondientes a HU-11 del Sprint 3.
+> La documentación conserva los componentes desarrollados en los Sprints 1 y 2 e incorpora HU-11 a HU-15 del Sprint 3, sin cambiar la arquitectura en capas ni sustituir las funcionalidades anteriores.
 
 ---
 
@@ -15,7 +15,7 @@
 
 Requisitos: JDK 17 o superior. No hace falta instalar Maven (se usa el wrapper `mvnw`).
 
-1. Copiar `.env.example` como `.env` (está en `.gitignore`) o exportar las variables en el sistema / IDE:
+1. Configurar las siguientes variables de entorno en el sistema, el IDE o la misma terminal desde la que se inicia la aplicación. Un archivo `.env` por sí solo no se carga automáticamente con la configuración actual:
 
    | Variable | Uso |
       |---|---|
@@ -37,7 +37,7 @@ Reservar es una API REST para la gestión de reservas entre **clientes** y **pro
 
 - **Sprint 1 (Épica 1):** registro, autenticación, verificación de correo, gestión de perfil y recuperación de contraseña.
 - **Sprint 2 (Épica 2):** los proveedores publican y administran sus ofertas de servicio y definen su disponibilidad (franjas semanales y bloqueos de fechas puntuales); los clientes buscan, filtran y consultan el detalle de un servicio con sus próximas franjas disponibles.
-- **Sprint 3 (Épica 3 – HU-11):** se implementa la creación de reservas por parte de clientes autenticados. El backend valida la oferta, la fecha solicitada y la disponibilidad del horario, calcula la fecha de finalización y registra la reserva con estado inicial `PENDIENTE`. También incorpora el control de superposición de reservas para impedir que dos solicitudes ocupen el mismo intervalo de una oferta de servicio.
+- **Sprint 3 (Épica 3, HU-11 a HU-15):** creación de reservas en estado `PENDIENTE` con validación de oferta, fecha y disponibilidad; confirmación o rechazo por el proveedor dueño; cancelación por los participantes; consulta privada y paginada del historial; finalización automática de reservas confirmadas y creación o edición de calificaciones por el cliente que recibió el servicio. Se conserva el control de superposición y se incorpora el promedio y la cantidad de calificaciones en el detalle público de cada oferta.
 
 La arquitectura se documenta siguiendo el modelo **C4** (Contexto, Contenedores, Componentes) y se justifican las decisiones de estilo arquitectónico, persistencia y seguridad.
 
@@ -55,8 +55,8 @@ graph TD
     BD[("🗄️ PostgreSQL (Neon)<br/>Sistema externo<br/>Almacenamiento de datos")]
     Correo["📧 Gmail SMTP<br/>Sistema externo<br/>Envío de correos transaccionales"]
 
-    Cliente -->|"Se registra, inicia sesión,<br/>busca servicios, consulta detalles<br/>y crea reservas (HTTPS/JSON)"| Sistema
-    Proveedor -->|"Se registra, inicia sesión,<br/>publica servicios y define horarios (HTTPS/JSON)"| Sistema
+    Cliente -->|"Se registra, inicia sesión,<br/>busca servicios, consulta detalles<br/>crea y cancela reservas,<br/>consulta su historial y califica (HTTPS/JSON)"| Sistema
+    Proveedor -->|"Se registra, inicia sesión,<br/>publica servicios, define horarios<br/>y gestiona sus reservas (HTTPS/JSON)"| Sistema
     Sistema -->|"Lee/escribe datos<br/>(JDBC, TLS)"| BD
     Sistema -->|"Envía correos de<br/>verificación/recuperación (SMTP+TLS)"| Correo
 ```
@@ -71,7 +71,7 @@ graph TD
 | PostgreSQL (Neon) | Sistema externo | Base de datos relacional gestionada, alojada en la nube |
 | Gmail SMTP | Sistema externo | Proveedor de correo saliente para verificación, recuperación y confirmación de cambio de correo |
 
-> Fuera de alcance: pagos en línea, notificaciones push/SMS, integración con mapas o geolocalización de terceros (la ubicación se guarda como texto libre) y múltiples sedes por proveedor. Por eso no aparecen nuevos sistemas externos con la incorporación de HU-11.
+> Fuera de alcance: pagos en línea, notificaciones push/SMS, integración con mapas o geolocalización de terceros (la ubicación se guarda como texto libre) y múltiples sedes por proveedor. Por eso no aparecen nuevos sistemas externos con la incorporación de HU-11 a HU-15.
 
 ---
 
@@ -84,10 +84,10 @@ graph TD
     Cliente["👤 Cliente / Proveedor"]
 
     subgraph SistemaReservar["Sistema Reservar"]
-        API["📦 API REST<br/>Spring Boot 4.1 / Java 17<br/>Expone /api/auth/**, /api/usuario/**,<br/>/api/ofertas/**, /api/catalogo/**<br/>y /api/reservas (HU-11)<br/>Puerto 8080"]
+        API["📦 API REST<br/>Spring Boot 4.1 / Java 17<br/>Expone /api/auth/**, /api/usuario/**,<br/>/api/ofertas/**, /api/catalogo/**<br/>y /api/reservas/**<br/>Puerto 8080"]
     end
 
-    BD[("🗄️ PostgreSQL (Neon)<br/>Esquema: usuarios_proveedores_db")]
+    BD[("🗄️ PostgreSQL (Neon)<br/>Base de datos: usuarios_proveedores_db")]
     Correo["📧 Gmail SMTP<br/>smtp.gmail.com:587"]
 
     Cliente -->|"HTTPS/JSON"| API
@@ -95,7 +95,7 @@ graph TD
     API -->|"SMTP + STARTTLS<br/>vía JavaMailSender"| Correo
 ```
 
-**Justificación:** un único contenedor desplegable (monolito modular) sigue siendo suficiente y apropiado para el alcance académico y el tamaño del equipo. Las funcionalidades de autenticación, ofertas, disponibilidad y creación de reservas conviven en el mismo contenedor y utilizan la misma base de datos, sin necesidad de incorporar nuevos servicios.
+**Justificación:** un único contenedor desplegable (monolito modular) sigue siendo suficiente y apropiado para el alcance académico y el tamaño del equipo. Las funcionalidades de autenticación, ofertas, disponibilidad, reservas y calificaciones conviven en el mismo proceso y utilizan la misma base de datos, sin necesidad de incorporar nuevos servicios. En C4, «contenedor» representa una unidad ejecutable; este diagrama no implica que exista una imagen Docker ni un despliegue orquestado.
 
 ---
 
@@ -105,11 +105,11 @@ graph TD
 graph TD
     subgraph API["Contenedor: API REST (com.reservar)"]
         Sec["🔐 Security<br/>SesionAuthenticationFilter<br/>TokenHasher<br/>SecurityConfig"]
-        Ctrl["🌐 Controllers<br/>AuthController<br/>UsuarioController<br/>OfertaServicioController<br/>DisponibilidadServicioController<br/>CatalogoServicioController<br/>ReservaController (HU-11)"]
+        Ctrl["🌐 Controllers<br/>AuthController<br/>UsuarioController<br/>OfertaServicioController<br/>DisponibilidadServicioController<br/>CatalogoServicioController<br/>ReservaController<br/>GestionReservaController<br/>CalificacionController"]
         DTO["📋 DTO / Validation<br/>Bean Validation (jakarta.validation)<br/>PasswordValidator<br/>dto.auth / dto.usuario / dto.servicio<br/>dto.reserva"]
-        Svc["⚙️ Services<br/>AuthService<br/>UsuarioService<br/>EmailService<br/>OfertaServicioService<br/>DisponibilidadServicioService<br/>CatalogoServicioService<br/>ReservaService (HU-11)"]
-        Repo["🗂️ Repositories (Spring Data JPA)<br/>Sprint 1: Usuario, Sesion, Token, Proveedor,<br/>CodigoProveedor, IntentoLogueo<br/>Sprint 2: OfertaServicio, CategoriaServicio,<br/>TipoServicio, DisponibilidadServicio,<br/>BloqueoDisponibilidad<br/>Sprint 3: Reserva, HistorialReserva"]
-        Ent["🧱 Entities (JPA)<br/>Sprint 1: Usuario, Sesion, Token,<br/>Proveedor, CodigoProveedor, IntentoLogueo<br/>Sprint 2: OfertaServicio, CategoriaServicio,<br/>TipoServicio, DisponibilidadServicio,<br/>BloqueoDisponibilidad<br/>Sprint 3: Reserva, HistorialReserva"]
+        Svc["⚙️ Services<br/>AuthService<br/>UsuarioService<br/>EmailService<br/>OfertaServicioService<br/>DisponibilidadServicioService<br/>CatalogoServicioService<br/>ReservaService<br/>GestionReservaService<br/>FinalizacionReservaService<br/>CalificacionService"]
+        Repo["🗂️ Repositories (Spring Data JPA)<br/>Sprint 1: Usuario, Sesion, Token, Proveedor,<br/>CodigoProveedor, IntentoLogueo<br/>Sprint 2: OfertaServicio, CategoriaServicio,<br/>TipoServicio, DisponibilidadServicio,<br/>BloqueoDisponibilidad<br/>Sprint 3: Reserva, HistorialReserva, Calificacion"]
+        Ent["🧱 Entities (JPA)<br/>Sprint 1: Usuario, Sesion, Token,<br/>Proveedor, CodigoProveedor, IntentoLogueo<br/>Sprint 2: OfertaServicio, CategoriaServicio,<br/>TipoServicio, DisponibilidadServicio,<br/>BloqueoDisponibilidad<br/>Sprint 3: Reserva, HistorialReserva, Calificacion"]
         Exc["⚠️ Exception Handling<br/>GlobalExceptionHandler<br/>BusinessException / ErrorResponse"]
     end
 
@@ -134,14 +134,14 @@ graph TD
 | `security` | Autenticación por token de sesión opaco (no JWT); construye el `Authentication` de Spring Security en cada request |
 | `controller` | Adaptador HTTP: recibe DTOs validados, delega en el service y traduce el resultado a `ResponseEntity`. Los controladores que requieren identidad extraen el `Usuario` autenticado del `SecurityContext` y lo pasan al servicio |
 | `dto` + Bean Validation | Contrato de entrada/salida de la API; validaciones declarativas (`@NotBlank`, `@NotNull`, `@Positive`, `@Size`, etc.) |
-| `service` | Reglas de negocio y orquestación de transacciones (`@Transactional`). Aquí viven la autorización por propiedad del recurso, el cálculo de próximas franjas y la lógica de creación de reservas |
+| `service` | Reglas de negocio y orquestación de transacciones (`@Transactional`). Aquí viven la autorización por propiedad del recurso, el cálculo de próximas franjas, las transiciones de reservas y las reglas de calificación |
 | `repository` | Acceso a datos vía Spring Data JPA; consultas derivadas y consultas `@Query` explícitas |
 | `entity` | Modelo de persistencia, mapeado contra el esquema físico de PostgreSQL |
 | `exception` | Traducción centralizada de errores de negocio y de validación a respuestas HTTP |
 
 La estructura de paquetes replica una **arquitectura en capas** clásica de Spring Boot: `controller → service → repository → entity`, con paquetes transversales (`security`, `exception`, `config`, `validation`) que no pertenecen a ninguna capa de negocio específica.
 
-En HU-11, `ReservaController` recibe la solicitud de creación, obtiene el usuario autenticado desde `SecurityContextHolder` y delega la operación a `ReservaService`. Este servicio coordina las validaciones y la persistencia mediante los repositorios correspondientes.
+En HU-11, `ReservaController` recibe la solicitud de creación, obtiene el usuario autenticado desde `SecurityContextHolder` y delega la operación a `ReservaService`. Este servicio coordina las validaciones y la persistencia mediante los repositorios correspondientes. Las operaciones posteriores se delegan a `GestionReservaService`; `CalificacionService` gestiona las valoraciones y `FinalizacionReservaService` ejecuta la finalización periódica mediante `@Scheduled`, habilitada por `ReservaSchedulingConfig`.
 
 ---
 
@@ -234,9 +234,9 @@ erDiagram
 | Índices | `idx_oferta_proveedor`, `idx_oferta_tipo_servicio`, `idx_oferta_estado`, `idx_tipo_servicio_categoria`, `idx_disponibilidad_servicio_dia`, `idx_bloqueo_servicio_fecha`, creados según los patrones de consulta de búsqueda y de cálculo de disponibilidad |
 | Bloqueo como excepción puntual | `BLOQUEO_DISPONIBILIDAD` es independiente de la configuración recurrente: bloquear una fecha no elimina ni modifica las franjas semanales. `motivo` admite `RESERVADO` y `OTRO` |
 
-### 6.2 Modelo de datos del Sprint 3 (HU-11)
+### 6.2 Modelo de datos del Sprint 3 (HU-11 a HU-15)
 
-La implementación de HU-11 incorpora las entidades `RESERVA` e `HISTORIAL_RESERVA` al modelo de persistencia.
+El modelo utiliza `RESERVA`, `HISTORIAL_RESERVA` y `CALIFICACION`, respetando los nombres del modelo E-R de la entrega de base de datos. La incorporación de las funcionalidades no ejecuta DDL nuevo: el esquema debe existir y Hibernate lo valida al iniciar.
 
 ```mermaid
 erDiagram
@@ -244,6 +244,16 @@ erDiagram
     OFERTA_SERVICIO ||--o{ RESERVA : "recibe"
     RESERVA ||--o{ HISTORIAL_RESERVA : "registra"
     USUARIO ||--o{ HISTORIAL_RESERVA : "actua"
+    RESERVA ||--o| CALIFICACION : "recibe"
+
+    CALIFICACION {
+        bigint id_calificacion PK
+        bigint id_reserva FK, UK
+        smallint estrellas
+        varchar comentario
+        timestamp fecha_creacion
+        timestamp fecha_actualizacion
+    }
 
     RESERVA {
         bigint id_reserva PK
@@ -272,7 +282,9 @@ erDiagram
 - `RESERVA`: almacena las solicitudes de reserva realizadas por los clientes, relacionándolas con el usuario y la oferta de servicio correspondiente.
 - `HISTORIAL_RESERVA`: registra los cambios de estado asociados a una reserva, incluyendo el actor responsable, el estado anterior, el nuevo estado y la fecha del cambio.
 
-**Decisiones de modelado y restricciones del Sprint 3 (HU-11):**
+- `CALIFICACION`: guarda una única valoración por reserva, con estrellas, comentario opcional y marcas de creación/actualización; el cliente y la oferta se obtienen a través de la reserva.
+
+**Decisiones de modelado y restricciones del Sprint 3:**
 
 | Decisión | Detalle |
 |---|---|
@@ -285,6 +297,10 @@ erDiagram
 | Control de superposición | La restricción `ex_reserva_horario` utiliza `EXCLUDE USING GIST` sobre la oferta y el intervalo `tsrange(fecha_inicio, fecha_fin, '[)')`, considerando únicamente reservas `PENDIENTE` y `CONFIRMADA` |
 | Intervalos semiabiertos | El uso de `[)` permite reservas consecutivas: una reserva puede terminar exactamente cuando comienza la siguiente |
 | Historial inicial | Al crear una reserva se registra un evento en `HISTORIAL_RESERVA`, con `estado_anterior` nulo y `estado_nuevo = 'PENDIENTE'` |
+| Transiciones y auditoría | Confirmar, rechazar y cancelar actualiza la reserva y registra actor, fecha, estados y motivo en una misma transacción |
+| Serialización de operaciones | `PESSIMISTIC_WRITE` bloquea la fila de la reserva durante las transiciones manuales y la creación/edición de calificaciones |
+| Calificación única | `CALIFICACION.id_reserva` es una FK única; una segunda creación se rechaza y la edición conserva el mismo registro |
+| Promedio por oferta | `AVG` y `COUNT` se calculan desde las calificaciones asociadas a las reservas de la oferta; sin valoraciones, el promedio es `null` y la cantidad es `0` |
 
 La restricción de exclusión constituye la garantía final frente a solicitudes concurrentes que intenten ocupar el mismo intervalo para una oferta. La validación también se realiza desde el servicio para proporcionar una respuesta de negocio específica cuando el horario ya está ocupado.
 
@@ -330,6 +346,14 @@ La autorización se aplica de acuerdo con el tipo de operación y el rol del usu
 - La identidad del cliente se obtiene del token de sesión. No se recibe un `id_usuario` ni un identificador de cliente en el cuerpo de la solicitud.
 - Los perfiles `CLIENTE` y `PROVEEDOR` son mutuamente excluyentes. Por el flujo normal de autenticación, un proveedor no puede realizar reservas como cliente. La validación de autorreserva se mantiene como una protección adicional.
 
+**Gestión, consultas y calificaciones (HU-12 a HU-15):**
+
+- Todas las rutas de reservas y calificaciones requieren un token de sesión válido y las operaciones comprueban que la cuenta esté activa.
+- Solo el proveedor dueño de la oferta puede confirmar o rechazar una reserva pendiente. El cliente dueño o ese proveedor pueden cancelar una reserva pendiente o confirmada que aún no haya finalizado.
+- Las consultas de listado, detalle y auditoría se limitan a las reservas en las que participa el usuario autenticado. No existe una consulta pública del historial.
+- Solo el cliente dueño puede crear o editar la calificación de una reserva `COMPLETADA`. La identidad no se recibe en el cuerpo de la petición.
+- Un participante ajeno recibe `403`; un recurso inexistente, `404`; una transición no permitida, `400`; una calificación duplicada, `409`.
+
 **Roles del dominio:** `CLIENTE`, `PROVEEDOR` (enum `Rol`, columna `USUARIO.rol`), traducidos a `ROLE_CLIENTE` / `ROLE_PROVEEDOR` por el filtro de autenticación.
 
 ### 7.3 Control de permisos por endpoint (estado actual)
@@ -369,13 +393,21 @@ La autorización se aplica de acuerdo con el tipo de operación y el rol del usu
 | `/api/ofertas/{idServicio}/bloqueos` | POST | Proveedor activo, dueño | Bloquea una fecha. Sin `horaInicio` ni `horaFin` bloquea el día completo; `motivo` es opcional (por defecto `OTRO`). No admite fechas pasadas |
 | `/api/ofertas/{idServicio}/bloqueos/{id}` | DELETE | Proveedor activo, dueño | — |
 
-**Sprint 3 – HU-11**
+**Sprint 3, HU-11 a HU-15**
 
 | Endpoint | Método | Quién puede usarlo | Notas |
 |---|---|---|---|
-| `/api/reservas` | POST | Cliente autenticado | Crea una reserva en estado `PENDIENTE`. Valida la oferta, fecha futura, disponibilidad y conflictos de horario |
+| `/api/reservas` | POST | Cliente autenticado | Crea una reserva `PENDIENTE`; valida oferta, fecha futura, disponibilidad y conflictos de horario. Responde `201` |
+| `/api/reservas/{idReserva}/confirmar` | PATCH | Proveedor activo dueño de la oferta | Solo desde `PENDIENTE`; responde `200` |
+| `/api/reservas/{idReserva}/rechazar` | PATCH | Proveedor activo dueño de la oferta | Solo desde `PENDIENTE`; cuerpo opcional con `motivo` de hasta 255 caracteres |
+| `/api/reservas/{idReserva}/cancelar` | PATCH | Cliente dueño o proveedor dueño, cuenta activa | Desde `PENDIENTE` o `CONFIRMADA`, antes de finalizar; motivo opcional |
+| `/api/reservas` | GET | Participante activo | Listado propio paginado; filtro opcional `estado`, parámetros `page`, `size`, `sort`; orden predeterminado `fechaInicio DESC` |
+| `/api/reservas/{idReserva}` | GET | Participante activo | Detalle privado de una reserva |
+| `/api/reservas/{idReserva}/historial` | GET | Participante activo | Auditoría de cambios, ordenada por fecha |
+| `/api/reservas/{idReserva}/calificacion` | POST | Cliente activo dueño de la reserva completada | `estrellas` de 1 a 5 y `comentario` opcional de hasta 500 caracteres; responde `201`, duplicado `409` |
+| `/api/reservas/{idReserva}/calificacion` | PUT | Cliente activo dueño de la reserva completada | Edita la calificación existente; responde `200`, inexistente `404` |
 
-> En esta entrega de HU-11 no se documentan endpoints GET para consultar reservas o historial, ni operaciones posteriores de gestión de reservas. Esas funcionalidades corresponden a otras historias de usuario.
+El detalle público existente `GET /api/ofertas/{id}` incorpora `promedioCalificacion` y `numeroCalificaciones`, calculados por oferta, no como promedio global del proveedor. La finalización automática es una tarea interna: no se añade un endpoint para forzar `COMPLETADA`.
 
 ---
 
@@ -414,6 +446,16 @@ La autorización se aplica de acuerdo con el tipo de operación y el rol del usu
 | `FUERA_DE_DISPONIBILIDAD` | El horario solicitado está fuera de la disponibilidad configurada para el servicio |
 | `HORARIO_NO_DISPONIBLE` | Ya existe una reserva para la oferta en el horario solicitado |
 | `401 Unauthorized` | Solicitud sin autenticación válida; el rechazo se produce en el filtro de seguridad |
+
+**Códigos incorporados para HU-12 a HU-15:**
+
+| Código | HTTP | Situación |
+|---|---|---|
+| `RESERVA_NO_ENCONTRADA` / `CALIFICACION_NO_ENCONTRADA` | 404 | Reserva inexistente o calificación aún no creada |
+| `RESERVA_NO_PROPIA` / `ROL_NO_AUTORIZADO` | 403 | Usuario ajeno o rol sin permiso para la operación |
+| `ESTADO_RESERVA_INVALIDO` | 400 | Transición no permitida o intento de calificar una reserva no completada |
+| `CALIFICACION_EXISTENTE` | 409 | Segunda creación de calificación para la misma reserva |
+| `MOTIVO_INVALIDO` / `ESTRELLAS_INVALIDAS` / `COMENTARIO_INVALIDO` | 400 | Motivo mayor de 255 caracteres, estrellas fuera de 1 a 5 o comentario mayor de 500 caracteres |
 
 El manejo centralizado de errores evita duplicar `try/catch` en cada controller, mantiene respuestas controladas y aísla la capa de negocio de los detalles del protocolo HTTP. Los rechazos de Spring Security pueden utilizar una estructura distinta a `ErrorResponse`, según el punto en el que se rechace la solicitud.
 
@@ -454,7 +496,7 @@ flowchart TD
     H --> I["Ordenar por fecha y hora"]
 ```
 
-### Épica 3 – Sprint 3 (HU-11)
+### Épica 3, Sprint 3 (HU-11 a HU-15)
 
 15. **Creación de reservas por clientes:** únicamente los usuarios autenticados con perfil `CLIENTE` pueden crear reservas mediante el flujo normal de autenticación. Los perfiles `CLIENTE` y `PROVEEDOR` son mutuamente excluyentes.
 16. **Validación de fecha:** la fecha de inicio solicitada debe ser futura.
@@ -465,6 +507,15 @@ flowchart TD
 21. **Ocupación del horario:** las reservas `PENDIENTE` y `CONFIRMADA` ocupan el intervalo solicitado e impiden nuevas reservas superpuestas.
 22. **Trazabilidad inicial:** al crear una reserva se registra su evento inicial en `HISTORIAL_RESERVA`, con estado anterior nulo y estado nuevo `PENDIENTE`.
 23. **Control de concurrencia:** la restricción de exclusión de PostgreSQL evita que dos solicitudes concurrentes registren reservas superpuestas para la misma oferta, incluso si ambas superan las validaciones previas del servicio.
+24. **Confirmación y rechazo (HU-12):** solo el proveedor dueño puede pasar una reserva `PENDIENTE` a `CONFIRMADA` o `RECHAZADA`. Una reserva rechazada deja de ocupar el horario.
+25. **Cancelación (HU-13):** el cliente dueño o el proveedor dueño pueden cancelar una reserva `PENDIENTE` o `CONFIRMADA` antes de su fecha de finalización. Se rechazan cancelaciones de reservas rechazadas, canceladas o completadas.
+26. **Auditoría manual atómica:** confirmar, rechazar y cancelar registra actor autenticado, estados, momento y motivo en la misma transacción que actualiza la reserva. No se elimina físicamente la reserva al liberar su horario.
+27. **Historial privado (HU-14):** cada participante consulta únicamente sus reservas; el listado es paginado y admite filtro por estado. El detalle y la auditoría también comprueban propiedad.
+28. **Finalización automática:** con la aplicación en ejecución, una tarea con `fixedDelay = 30000` actualiza a `COMPLETADA` las reservas `CONFIRMADA` cuya `fechaFin` ya llegó. Utiliza el `Clock` de `America/Bogota`; no existe un endpoint público para adelantar el estado.
+29. **Límite de auditoría automática:** `HISTORIAL_RESERVA.id_actor` es obligatorio y no hay un actor de sistema definido. La finalización automática actualiza estado y fecha de la reserva, pero no inventa un usuario ni inserta un evento de historial. La trazabilidad completa de esa transición queda pendiente de una decisión de modelado.
+30. **Calificación (HU-15):** solo el cliente activo dueño de una reserva `COMPLETADA` puede valorarla, con estrellas de 1 a 5 y comentario opcional de hasta 500 caracteres. No se califica una reserva pendiente, rechazada o cancelada.
+31. **Edición sin duplicación:** solo existe una calificación por reserva; `POST` duplicado responde `409` y `PUT` actualiza el registro existente. Se bloquea la fila de la reserva durante ambas operaciones.
+32. **Resumen público por oferta:** el detalle agrega `promedioCalificacion` y `numeroCalificaciones`; editar una valoración actualiza el promedio sin incrementar el conteo.
 
 ---
 
@@ -477,8 +528,20 @@ flowchart TD
 | **HU-07** Edición y desactivación | `PUT /api/ofertas/{id}`, `PATCH /api/ofertas/{id}/desactivar` | Implementada. Sin sesión: 401; oferta ajena: 403 |
 | **HU-08** Disponibilidad | `POST/DELETE …/disponibilidad`, `POST/DELETE …/bloqueos` | Implementada. El bloqueo admite día completo (sin horas) o un rango horario |
 | **HU-09** Búsqueda y filtrado | `GET /api/ofertas?texto=&idCategoria=&page=&size=` | Implementada, paginada. Sin resultados devuelve 200 con página vacía y el campo `mensaje` ("No se encontraron servicios que coincidan con la búsqueda."); con resultados `mensaje` es `null` |
-| **HU-10** Detalle y disponibilidad | `GET /api/ofertas/{id}` con `proximasDisponibilidades` | Implementada. Servicio inexistente o inactivo responde con `OFERTA_NO_DISPONIBLE`. La calificación del proveedor no se incluye en esta funcionalidad |
+| **HU-10** Detalle y disponibilidad | `GET /api/ofertas/{id}` con `proximasDisponibilidades` | Implementada. Servicio inexistente o inactivo responde con `OFERTA_NO_DISPONIBLE`. Sprint 3 añade promedio y cantidad de calificaciones por oferta; no un promedio global del proveedor |
 | **HU-11** Creación de reservas | `POST /api/reservas` → `ReservaService.crearReserva` | Implementada. Valida autenticación, oferta activa, fecha futura, disponibilidad y conflictos de horario. Crea la reserva en estado `PENDIENTE` y registra el evento inicial en `HISTORIAL_RESERVA`. Se verificó mediante pruebas en Postman, incluida una prueba de concurrencia |
+
+### Responsables y alcance del Sprint 3
+
+| HU | Responsable | Implementación |
+|---|---|---|
+| **HU-11** Creación de reservas | Diego | `ReservaController` y `ReservaService`; creación `PENDIENTE`, validación de horario e historial inicial |
+| **HU-12** Confirmación y rechazo | Sebastián | `GestionReservaController` y `GestionReservaService`; proveedor dueño, estados válidos y liberación del horario al rechazar |
+| **HU-13** Cancelación y auditoría | Jerónimo | Cancelación por los participantes, liberación del horario y registro transaccional del cambio |
+| **HU-14** Historial de reservas | Sebastián | Listado propio paginado y filtrado, detalle privado y consulta de auditoría; finalización automática de confirmadas vencidas |
+| **HU-15** Calificaciones | Luis Fernando | `CalificacionController` y `CalificacionService`; creación/edición por reserva completada y resumen público por oferta |
+
+Estas funcionalidades están implementadas en el código. La evidencia de pruebas y las limitaciones de la validación se describen a continuación; la implementación no implica que todos los escenarios de integración con PostgreSQL hayan sido certificados.
 
 ### Requisitos no funcionales
 
@@ -490,8 +553,31 @@ flowchart TD
 | Identidad del cliente en la creación de reservas | Se obtiene del `SecurityContext` mediante el token de sesión, no de un identificador enviado por el cliente |
 | Prevención de reservas superpuestas | Validación de negocio en el servicio y restricción de exclusión GiST en PostgreSQL |
 | Trazabilidad de la creación | Registro del evento inicial de la reserva en `HISTORIAL_RESERVA` |
+| Transiciones manuales consistentes | Bloqueo pesimista de la reserva y auditoría en una misma transacción |
+| Privacidad de reservas | Listado por participante y validación de propiedad en detalle e historial |
+| Integridad de calificaciones | Una calificación por reserva, validación de estado completado, propiedad y rango de estrellas |
 
 ---
+
+### Criterios técnicos del Sprint 3 y evidencia disponible
+
+| Criterio | Estado documentado |
+|---|---|
+| Refinamiento de APIs | Se amplía `/api/reservas` con transiciones, consultas privadas, paginación, filtro por estado y calificaciones. Se conservan las rutas existentes y el manejo centralizado de errores |
+| Contenedores y orquestación, cuando aplique | Se conserva el monolito en un único proceso Spring Boot. No hay configuración de Docker, Compose ni Kubernetes en la revisión; no se declara un despliegue contenerizado u orquestado |
+| Observabilidad con Grafana/Prometheus | No implementada en esta entrega: no se encontraron dependencias de Actuator/Micrometer Prometheus ni configuración de recolección o paneles. JaCoCo y SonarCloud son herramientas de calidad, no sustituyen la observabilidad operativa |
+| Pruebas de integración | Hay pruebas HTTP/seguridad con MockMvc y `@WebMvcTest`, con servicios simulados. Existe una prueba `@SpringBootTest` de carga de contexto, condicionada a `DB_USER`, que requiere conexión real. No equivale a una suite completa de integración JPA/concurrencia de HU-12 a HU-15 |
+| Aseguramiento mediante tokens | Se reutilizan los tokens de sesión opacos, hash SHA-256, expiración y revocación. Las operaciones de reservas validan identidad, rol, cuenta activa y propiedad. No se introduce JWT ni se expone un endpoint público para consultar reservas privadas |
+
+### Pruebas y límites de validación
+
+- Se añadieron pruebas de servicios, controladores y autorización para gestión de reservas y calificaciones. Cubren transiciones, propiedad, restricciones de calificación y acceso sin sesión.
+- En la última ejecución local registrada durante la implementación se contabilizaron **420 pruebas: 418 aprobadas, 1 fallo preexistente y 1 omitida**. Las **63 pruebas añadidas** pasaron. Estos resultados no son una nueva ejecución ni garantizan el estado actual de CI.
+- El fallo preexistente corresponde a `DisponibilidadServicioGestionTest.CrearBloqueo.deberiaRechazarFechasPasadas`: combina `LocalDate.now()` real con un `Clock` fijo. Se reportó sin modificarlo. La prueba omitida fue la carga del contexto con BD real por ausencia de `DB_USER`.
+- La integración real de persistencia y concurrencia de HU-12 a HU-15 y la ejecución completa de las pruebas funcionales tras la corrección de la espera en Postman siguen pendientes de verificación. No se declara una suite completamente aprobada ni una demo grabada.
+- Para probar calificaciones con datos nuevos, primero se confirma una reserva y se espera a que su `fechaFin` haya transcurrido y el proceso programado la marque `COMPLETADA`. No debe ejecutarse antes el intento de cancelar esa misma reserva: si aún está confirmada, la cancelación sería válida y bloquearía las pruebas posteriores de calificación.
+- El flujo con un cliente y un proveedor permite probar sus operaciones, pero no demuestra el rechazo de una tercera cuenta ajena; ese caso requiere otra cuenta o las pruebas automatizadas correspondientes.
+- La configuración de GitHub Actions ejecuta `verify`, la regla de cobertura JaCoCo (mínimo 65 % de líneas) y el análisis SonarCloud. No se afirma que la ejecución remota o el quality gate hayan finalizado correctamente sin revisar sus resultados.
 
 ## 11. Decisiones de arquitectura (ADR resumidos)
 
@@ -507,7 +593,8 @@ flowchart TD
 | ADR-08 | Catálogo público de solo lectura en `/api/catalogo/**` | La "lista predefinida" de HU-06 debe ser consultable por la API | Datos embebidos en el cliente; endpoint solo para proveedores | Rutas `GET` públicas, útiles también para el filtro de HU-09. Costo: los tipos se exponen sin autenticación | Equipo Backend+BD | 2026-10-09 |
 | ADR-09 | Restricción de exclusión para reservas superpuestas | Dos solicitudes concurrentes podrían intentar reservar el mismo intervalo de una oferta | Validación únicamente en el servicio; control únicamente en la base de datos | Se valida en el servicio para generar un error de negocio claro y se utiliza `EXCLUDE USING GIST` en PostgreSQL como garantía de integridad ante concurrencia. Costo: requiere la extensión `btree_gist`. | Equipo Backend+BD | 2026-11-08 |
 | ADR-10 | Identidad del cliente obtenida desde la sesión | Evitar que un usuario cree reservas a nombre de otro mediante un identificador manipulado | Recibir `id_usuario` en el body; obtenerlo del contexto de seguridad | `ReservaController` obtiene el `Usuario` autenticado desde `SecurityContextHolder` y lo entrega al servicio. La identidad no se recibe en la solicitud. | Equipo Backend | 2026-11-08 |
+| ADR-11 | Transiciones manuales y auditoría atómicas | Evitar cambios de estado concurrentes o sin trazabilidad | Actualización sin bloqueo; auditoría en otra transacción | Bloqueo pesimista de la fila de reserva y evento de historial en la misma transacción. Costo: operaciones concurrentes sobre la misma reserva se serializan. | Sebastián / Jerónimo | 2026-11-10 |
+| ADR-12 | Finalización periódica dentro del monolito | Completar reservas confirmadas al llegar su fecha de fin | Endpoint manual; planificador externo | `@Scheduled` y `Clock` compartido, sin servicio adicional. Requiere la aplicación activa; la auditoría automática queda pendiente por la ausencia de actor de sistema. | Sebastián | 2026-11-10 |
+| ADR-13 | Una calificación por reserva y resumen por oferta | Permitir editar sin duplicar valoraciones ni alterar el conteo | Múltiples valoraciones por reserva; promedio almacenado y sincronizado | FK única a reserva, bloqueo durante creación/edición y agregación `AVG`/`COUNT` al consultar el detalle. | Luis Fernando | 2026-11-10 |
 
 ---
-
-**Estado de la documentación:** se incorpora la implementación de HU-11 del Sprint 3, incluyendo el endpoint de creación, las reglas de negocio, las entidades involucradas, la autenticación, el control de concurrencia y las pruebas funcionales realizadas en Postman. Las operaciones de consulta y gestión posterior de reservas no se incluyen en este alcance.
