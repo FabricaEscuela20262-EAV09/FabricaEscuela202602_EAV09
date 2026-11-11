@@ -59,6 +59,9 @@ class OfertaServicioServiceTest {
     @Mock
     private Clock clock;
 
+    @Mock
+    private com.reservar.repository.CalificacionRepository calificacionRepository;
+
     @InjectMocks
     private OfertaServicioService service;
 
@@ -115,8 +118,15 @@ class OfertaServicioServiceTest {
                 ZoneId.of("America/Bogota")
         );
 
+        var resumen = org.mockito.Mockito.mock(com.reservar.repository.CalificacionRepository.Resumen.class);
+        when(resumen.getPromedio()).thenReturn(4.5);
+        when(resumen.getCantidad()).thenReturn(2L);
+        when(calificacionRepository.resumirPorServicio(10L)).thenReturn(resumen);
+
         // Act
         OfertaServicioResponse respuesta = service.obtenerDetalle(10L);
+        assertEquals(4.5, respuesta.getPromedioCalificacion());
+        assertEquals(2L, respuesta.getNumeroCalificaciones());
 
         // Assert
         assertAll(
@@ -126,6 +136,20 @@ class OfertaServicioServiceTest {
                 () -> assertEquals(45, respuesta.getDuracionMinutos()),
                 () -> assertEquals("Villavicencio", respuesta.getUbicacion())
         );
+    }
+
+    @Test
+    void deberiaMostrarCeroCalificacionesYPromedioNuloSinResenas() {
+        when(ofertaRepository.findByIdServicioAndEstado(10L, "ACTIVO"))
+                .thenReturn(Optional.of(crearOferta("ACTIVO", "ACTIVO")));
+        when(clock.instant()).thenReturn(Instant.parse("2026-11-06T01:00:00Z"));
+        when(clock.getZone()).thenReturn(ZoneId.of("America/Bogota"));
+        var resumen = org.mockito.Mockito.mock(com.reservar.repository.CalificacionRepository.Resumen.class);
+        when(resumen.getPromedio()).thenReturn(null);
+        when(calificacionRepository.resumirPorServicio(10L)).thenReturn(resumen);
+        OfertaServicioResponse respuesta = service.obtenerDetalle(10L);
+        assertNull(respuesta.getPromedioCalificacion());
+        assertEquals(0L, respuesta.getNumeroCalificaciones());
     }
 
     @Test

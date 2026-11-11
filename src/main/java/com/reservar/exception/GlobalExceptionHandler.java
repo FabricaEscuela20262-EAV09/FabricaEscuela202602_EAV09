@@ -19,8 +19,9 @@ public class GlobalExceptionHandler {
 
         HttpStatus status = switch (ex.getCodigo()) {
             case "USUARIO_NO_AUTENTICADO" -> HttpStatus.UNAUTHORIZED;
-            case "ROL_NO_AUTORIZADO", "OFERTA_NO_PROPIA", "CUENTA_NO_VERIFICADA" -> HttpStatus.FORBIDDEN;
-            case "OFERTA_NO_ENCONTRADA", "OFERTA_NO_DISPONIBLE" -> HttpStatus.NOT_FOUND;
+            case "ROL_NO_AUTORIZADO", "OFERTA_NO_PROPIA", "CUENTA_NO_VERIFICADA", "RESERVA_NO_PROPIA" -> HttpStatus.FORBIDDEN;
+            case "OFERTA_NO_ENCONTRADA", "OFERTA_NO_DISPONIBLE", "RESERVA_NO_ENCONTRADA", "CALIFICACION_NO_ENCONTRADA" -> HttpStatus.NOT_FOUND;
+            case "CALIFICACION_EXISTENTE" -> HttpStatus.CONFLICT;
             case "HORARIO_NO_DISPONIBLE", "HORARIO_BLOQUEADO", "FUERA_DE_DISPONIBILIDAD", "RESERVA_FUERA_DE_HORARIO" -> HttpStatus.CONFLICT;
             default -> HttpStatus.BAD_REQUEST;
         };

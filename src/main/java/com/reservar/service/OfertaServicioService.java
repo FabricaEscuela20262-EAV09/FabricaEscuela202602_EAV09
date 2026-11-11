@@ -3,6 +3,7 @@ package com.reservar.service;
 import com.reservar.entity.Reserva;
 import com.reservar.entity.enums.EstadoReserva;
 import com.reservar.repository.ReservaRepository;
+import com.reservar.repository.CalificacionRepository;
 import com.reservar.dto.servicio.ActualizarOfertaRequest;
 import com.reservar.dto.servicio.BusquedaOfertasResponse;
 import com.reservar.dto.servicio.CrearOfertaRequest;
@@ -53,6 +54,7 @@ public class OfertaServicioService {
     private final BloqueoDisponibilidadRepository bloqueoRepository;
     private final ReservaRepository reservaRepository;
     private final Clock clock;
+    private final CalificacionRepository calificacionRepository;
 
     public OfertaServicioService(
             OfertaServicioRepository ofertaRepository,
@@ -62,7 +64,8 @@ public class OfertaServicioService {
             DisponibilidadServicioRepository disponibilidadRepository,
             BloqueoDisponibilidadRepository bloqueoRepository,
             ReservaRepository reservaRepository,
-            Clock clock) {
+            Clock clock,
+            CalificacionRepository calificacionRepository) {
 
         this.ofertaRepository = ofertaRepository;
         this.proveedorRepository = proveedorRepository;
@@ -72,6 +75,7 @@ public class OfertaServicioService {
         this.bloqueoRepository = bloqueoRepository;
         this.reservaRepository = reservaRepository;
         this.clock = clock;
+        this.calificacionRepository = calificacionRepository;
     }
 
     // CREAR NUEVA OFERTA DE SERVICIO
@@ -157,6 +161,9 @@ public class OfertaServicioService {
         response.setProximasDisponibilidades(
                 calcularProximasDisponibilidades(oferta)
         );
+        CalificacionRepository.Resumen resumen = calificacionRepository.resumirPorServicio(idServicio);
+        response.setPromedioCalificacion(resumen.getPromedio());
+        response.setNumeroCalificaciones(resumen.getCantidad());
         return response;
     }
 

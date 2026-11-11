@@ -73,6 +73,11 @@ class OfertaServicioProximasFranjasTest {
     @Mock
     private Clock clock;
 
+    @Mock
+    private com.reservar.repository.CalificacionRepository calificacionRepository;
+    @Mock
+    private com.reservar.repository.CalificacionRepository.Resumen resumen;
+
     @InjectMocks
     private OfertaServicioService service;
 
@@ -80,6 +85,7 @@ class OfertaServicioProximasFranjasTest {
 
     @BeforeEach
     void setUp() {
+        lenient().when(calificacionRepository.resumirPorServicio(ID_SERVICIO)).thenReturn(resumen);
         lenient().when(clock.instant()).thenReturn(CLOCK.instant());
         lenient().when(clock.getZone()).thenReturn(CLOCK.getZone());
         hoy = LocalDate.now(CLOCK);
