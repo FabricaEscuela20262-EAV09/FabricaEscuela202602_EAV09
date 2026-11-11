@@ -1,5 +1,9 @@
 package com.reservar.service;
 
+import com.reservar.entity.Reserva;
+import com.reservar.entity.enums.EstadoReserva;
+import com.reservar.repository.ReservaRepository;
+import com.reservar.repository.CalificacionRepository;
 import com.reservar.dto.servicio.ActualizarOfertaRequest;
 import com.reservar.dto.servicio.BusquedaOfertasResponse;
 import com.reservar.dto.servicio.CrearOfertaRequest;
@@ -26,6 +30,9 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.time.LocalDateTime;
+import java.time.Clock;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -45,6 +52,9 @@ public class OfertaServicioService {
     private final CategoriaServicioRepository categoriaRepository;
     private final DisponibilidadServicioRepository disponibilidadRepository;
     private final BloqueoDisponibilidadRepository bloqueoRepository;
+    private final ReservaRepository reservaRepository;
+    private final Clock clock;
+    private final CalificacionRepository calificacionRepository;
 
     public OfertaServicioService(
             OfertaServicioRepository ofertaRepository,
@@ -52,7 +62,10 @@ public class OfertaServicioService {
             TipoServicioRepository tipoServicioRepository,
             CategoriaServicioRepository categoriaRepository,
             DisponibilidadServicioRepository disponibilidadRepository,
-            BloqueoDisponibilidadRepository bloqueoRepository) {
+            BloqueoDisponibilidadRepository bloqueoRepository,
+            ReservaRepository reservaRepository,
+            Clock clock,
+            CalificacionRepository calificacionRepository) {
 
         this.ofertaRepository = ofertaRepository;
         this.proveedorRepository = proveedorRepository;
@@ -60,6 +73,9 @@ public class OfertaServicioService {
         this.categoriaRepository = categoriaRepository;
         this.disponibilidadRepository = disponibilidadRepository;
         this.bloqueoRepository = bloqueoRepository;
+        this.reservaRepository = reservaRepository;
+        this.clock = clock;
+        this.calificacionRepository = calificacionRepository;
     }
 
     // CREAR NUEVA OFERTA DE SERVICIO
@@ -96,6 +112,14 @@ public class OfertaServicioService {
         Proveedor proveedor = obtenerProveedor(usuarioAutenticado);
 
         OfertaServicio oferta = obtenerOfertaPropia(idServicio, proveedor);
+
+        if (!"ACTIVO".equals(oferta.getEstado())) {
+            throw new BusinessException(
+                    "OFERTA_NO_DISPONIBLE",
+                    "No se puede editar una oferta que está inactiva."
+            );
+        }
+
         TipoServicio tipoServicio = obtenerTipoServicioActivo(request.getIdTipoServicio());
         oferta.setTipoServicio(tipoServicio);
 
@@ -137,6 +161,9 @@ public class OfertaServicioService {
         response.setProximasDisponibilidades(
                 calcularProximasDisponibilidades(oferta)
         );
+        CalificacionRepository.Resumen resumen = calificacionRepository.resumirPorServicio(idServicio);
+        response.setPromedioCalificacion(resumen.getPromedio());
+        response.setNumeroCalificaciones(resumen.getCantidad());
         return response;
     }
 
@@ -145,7 +172,11 @@ public class OfertaServicioService {
 
         String textoNormalizado = (texto == null || texto.isBlank())
                 ? ""
-                : texto.trim().toLowerCase(Locale.ROOT);
+                : texto.trim()
+                .toLowerCase(Locale.ROOT)
+                .replace("\\", "\\\\")
+                .replace("%", "\\%")
+                .replace("_", "\\_");
 
         // Validar que la categoría exista y esté activa.
         if (idCategoria != null) {
@@ -299,26 +330,54 @@ public class OfertaServicioService {
                 ? ""
                 : modalidad.trim().toUpperCase(Locale.ROOT);
 
-        if (!PRESENCIAL.equals(modalidadNormalizada)
-                && !REMOTO.equals(modalidadNormalizada)) {
+        String ubicacionNormalizada =
+                ubicacion == null || ubicacion.isBlank()
+                        ? null
+                        : ubicacion.trim();
+
+        validarModalidadYUbicacion(
+                modalidadNormalizada,
+                ubicacionNormalizada
+        );
+
+        validarCamposObligatorios(
+                nombre,
+                descripcion,
+                duracionMinutos
+        );
+
+        oferta.setNombre(nombre.trim());
+        oferta.setDescripcion(descripcion.trim());
+        oferta.setDuracionMinutos(duracionMinutos);
+        oferta.setModalidad(modalidadNormalizada);
+        oferta.setUbicacion(ubicacionNormalizada);
+    }
+
+    private void validarModalidadYUbicacion(
+            String modalidad,
+            String ubicacion) {
+
+        if (!PRESENCIAL.equals(modalidad)
+                && !REMOTO.equals(modalidad)) {
             throw new BusinessException(
                     "MODALIDAD_INVALIDA",
                     "La modalidad debe ser PRESENCIAL o REMOTO."
             );
         }
 
-        String ubicacionNormalizada =
-                ubicacion == null || ubicacion.isBlank()
-                        ? null
-                        : ubicacion.trim();
-
-        if (PRESENCIAL.equals(modalidadNormalizada)
-                && ubicacionNormalizada == null) {
+        if (PRESENCIAL.equals(modalidad)
+                && ubicacion == null) {
             throw new BusinessException(
                     "UBICACION_REQUERIDA",
                     "La ubicación es obligatoria para servicios presenciales."
             );
         }
+    }
+
+    private void validarCamposObligatorios(
+            String nombre,
+            String descripcion,
+            Integer duracionMinutos) {
 
         if (nombre == null || nombre.isBlank()) {
             throw new BusinessException(
@@ -340,12 +399,6 @@ public class OfertaServicioService {
                     "La duración debe ser mayor que cero."
             );
         }
-
-        oferta.setNombre(nombre.trim());
-        oferta.setDescripcion(descripcion.trim());
-        oferta.setDuracionMinutos(duracionMinutos);
-        oferta.setModalidad(modalidadNormalizada);
-        oferta.setUbicacion(ubicacionNormalizada);
     }
 
     private void validarCatalogoActivo(OfertaServicio oferta) {
@@ -391,85 +444,203 @@ public class OfertaServicioService {
     private List<DisponibilidadResponse> calcularProximasDisponibilidades(
             OfertaServicio oferta) {
 
-        LocalDate hoy = LocalDate.now();
+        LocalDate hoy = LocalDate.now(clock);
         LocalDate limite = hoy.plusDays(6);
         Long idServicio = oferta.getIdServicio();
-        List<DisponibilidadServicio> horarios = disponibilidadRepository.findByServicioIdServicio(idServicio);
-        List<BloqueoDisponibilidad> bloqueos = bloqueoRepository.findByServicioIdServicioAndFechaBetween(
-                        idServicio, hoy, limite);
+
+        List<DisponibilidadServicio> horarios =
+                disponibilidadRepository.findByServicioIdServicio(idServicio);
+
+        List<BloqueoDisponibilidad> bloqueos =
+                bloqueoRepository.findByServicioIdServicioAndFechaBetween(
+                        idServicio, hoy, limite
+                );
+
+        // Consultar reservas que ocupan horarios durante los próximos siete días.
+        LocalDateTime inicioRango = hoy.atStartOfDay();
+        LocalDateTime finRango = limite.plusDays(1).atStartOfDay();
+
+        List<Reserva> reservas = reservaRepository.findReservasActivasEnRango(
+                idServicio,
+                List.of(EstadoReserva.PENDIENTE, EstadoReserva.CONFIRMADA),
+                inicioRango,
+                finRango
+        );
+
         List<DisponibilidadResponse> resultado = new ArrayList<>();
+
         for (LocalDate fecha = hoy;
              !fecha.isAfter(limite);
              fecha = fecha.plusDays(1)) {
 
-            String dia = convertirDiaSemana(fecha.getDayOfWeek());
-            final LocalDate fechaActual = fecha;
-
-            List<BloqueoDisponibilidad> bloqueosDelDia = bloqueos.stream()
-                    .filter(b -> b.getFecha().equals(fechaActual))
-                    .toList();
-
-            for (DisponibilidadServicio horario : horarios) {
-                if (!dia.equalsIgnoreCase(horario.getDiaSemana())) {
-                    continue;
-                }
-
-                LocalTime inicio = horario.getHoraInicio();
-                LocalTime fin = horario.getHoraFin();
-
-                // No ofrecer horas que ya pasaron durante el día actual.
-                if (fecha.equals(hoy)) {
-                    LocalTime ahora = LocalTime.now()
-                            .plusMinutes(1)
-                            .withSecond(0)
-                            .withNano(0);
-
-                    if (ahora.isAfter(inicio)) {
-                        inicio = ahora;
-                    }
-                }
-
-                if (!inicio.isBefore(fin)) {
-                    continue;
-                }
-
-                List<FranjaHoraria> franjas = new ArrayList<>();
-                franjas.add(new FranjaHoraria(inicio, fin));
-
-                for (BloqueoDisponibilidad bloqueo : bloqueosDelDia) {
-                    franjas = descontarBloqueo(
-                            franjas,
-                            bloqueo.getHoraInicio(),
-                            bloqueo.getHoraFin()
-                    );
-                }
-
-                for (FranjaHoraria franja : franjas) {
-                    DisponibilidadResponse response =
-                            new DisponibilidadResponse();
-
-                    response.setIdServicio(idServicio);
-                    response.setTipo("DISPONIBLE");
-                    response.setDiaSemana(dia);
-                    response.setFecha(fecha);
-                    response.setHoraInicio(franja.inicio());
-                    response.setHoraFin(franja.fin());
-
-                    resultado.add(response);
-                }
-            }
+            resultado.addAll(
+                    calcularFranjasDelDia(
+                            fecha,
+                            hoy,
+                            oferta,
+                            horarios,
+                            bloqueos,
+                            reservas
+                    )
+            );
         }
 
         resultado.sort(
                 Comparator.comparing(DisponibilidadResponse::getFecha)
-                        .thenComparing(
-                                DisponibilidadResponse::getHoraInicio)
+                        .thenComparing(DisponibilidadResponse::getHoraInicio)
         );
 
         return resultado;
     }
 
-    private List<FranjaHoraria> descontarBloqueo(
+    private List<DisponibilidadResponse> calcularFranjasDelDia(
+            LocalDate fecha,
+            LocalDate hoy,
+            OfertaServicio oferta,
+            List<DisponibilidadServicio> horarios,
+            List<BloqueoDisponibilidad> bloqueos,
+            List<Reserva> reservas) {
+
+        String dia = convertirDiaSemana(fecha.getDayOfWeek());
+
+        List<BloqueoDisponibilidad> bloqueosDelDia = bloqueos.stream()
+                .filter(b -> b.getFecha().equals(fecha))
+                .toList();
+
+        List<Reserva> reservasDelDia = reservas.stream()
+                .filter(r -> r.getFechaInicio().toLocalDate().equals(fecha))
+                .toList();
+
+        List<DisponibilidadResponse> resultado = new ArrayList<>();
+
+        for (DisponibilidadServicio horario : horarios) {
+
+            if (!dia.equalsIgnoreCase(horario.getDiaSemana())) {
+                continue;
+            }
+
+            resultado.addAll(
+                    calcularDisponibilidadHorario(
+                            horario,
+                            fecha,
+                            hoy,
+                            dia,
+                            oferta,
+                            bloqueosDelDia,
+                            reservasDelDia
+                    )
+            );
+        }
+
+        return resultado;
+    }
+
+    private List<DisponibilidadResponse> calcularDisponibilidadHorario(
+            DisponibilidadServicio horario,
+            LocalDate fecha,
+            LocalDate hoy,
+            String dia,
+            OfertaServicio oferta,
+            List<BloqueoDisponibilidad> bloqueos,
+            List<Reserva> reservas) {
+
+        LocalTime inicio = recortarHorasPasadas(
+                fecha,
+                hoy,
+                horario.getHoraInicio()
+        );
+
+        LocalTime fin = horario.getHoraFin();
+
+        if (!inicio.isBefore(fin)) {
+            return List.of();
+        }
+
+        List<FranjaHoraria> franjas = new ArrayList<>();
+        franjas.add(new FranjaHoraria(inicio, fin));
+
+        // Descontar los bloqueos de disponibilidad.
+        for (BloqueoDisponibilidad bloqueo : bloqueos) {
+            franjas = descontarIntervalo(
+                    franjas,
+                    bloqueo.getHoraInicio(),
+                    bloqueo.getHoraFin()
+            );
+        }
+
+        // Descontar las reservas pendientes y confirmadas.
+        for (Reserva reserva : reservas) {
+            franjas = descontarIntervalo(
+                    franjas,
+                    reserva.getFechaInicio().toLocalTime(),
+                    reserva.getFechaFin().toLocalTime()
+            );
+        }
+
+        return construirRespuestasDisponibles(
+                franjas,
+                oferta,
+                dia,
+                fecha
+        );
+    }
+
+    private LocalTime recortarHorasPasadas(
+            LocalDate fecha,
+            LocalDate hoy,
+            LocalTime inicio) {
+
+        // No ofrecer horas que ya pasaron durante el día actual.
+        if (fecha.equals(hoy)) {
+            LocalTime ahora = LocalTime.now(clock)
+                    .plusMinutes(1)
+                    .withSecond(0)
+                    .withNano(0);
+
+            if (ahora.isAfter(inicio)) {
+                return ahora;
+            }
+        }
+
+        return inicio;
+    }
+
+    private List<DisponibilidadResponse> construirRespuestasDisponibles(
+            List<FranjaHoraria> franjas,
+            OfertaServicio oferta,
+            String dia,
+            LocalDate fecha) {
+
+        List<DisponibilidadResponse> resultado = new ArrayList<>();
+
+        for (FranjaHoraria franja : franjas) {
+
+            // No mostrar franjas donde no cabe el servicio completo (BUG #20).
+            long duracionDisponible = Duration.between(
+                    franja.inicio(),
+                    franja.fin()
+            ).toMinutes();
+
+            if (duracionDisponible < oferta.getDuracionMinutos()) {
+                continue;
+            }
+
+            DisponibilidadResponse response = new DisponibilidadResponse();
+
+            response.setIdServicio(oferta.getIdServicio());
+            response.setTipo("DISPONIBLE");
+            response.setDiaSemana(dia);
+            response.setFecha(fecha);
+            response.setHoraInicio(franja.inicio());
+            response.setHoraFin(franja.fin());
+
+            resultado.add(response);
+        }
+
+        return resultado;
+    }
+
+    private List<FranjaHoraria> descontarIntervalo(
             List<FranjaHoraria> franjas,
             LocalTime inicioBloqueo,
             LocalTime finBloqueo) {
@@ -480,21 +651,21 @@ public class OfertaServicioService {
             LocalTime inicio = franja.inicio();
             LocalTime fin = franja.fin();
 
-            // El bloqueo no se cruza con esta franja.
+            // El intervalo no se cruza con esta franja.
             if (!inicioBloqueo.isBefore(fin)
                     || !finBloqueo.isAfter(inicio)) {
                 resultado.add(franja);
                 continue;
             }
 
-            // Conservar la parte anterior al bloqueo.
+            // Conservar la parte anterior al intervalo ocupado.
             if (inicio.isBefore(inicioBloqueo)) {
                 resultado.add(
                         new FranjaHoraria(inicio, inicioBloqueo)
                 );
             }
 
-            // Conservar la parte posterior al bloqueo.
+            // Conservar la parte posterior al intervalo ocupado.
             if (finBloqueo.isBefore(fin)) {
                 resultado.add(
                         new FranjaHoraria(finBloqueo, fin)

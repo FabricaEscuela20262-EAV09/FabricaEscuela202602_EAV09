@@ -17,6 +17,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.time.Clock;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -35,16 +36,19 @@ public class DisponibilidadServicioService {
     private final BloqueoDisponibilidadRepository bloqueoRepository;
     private final OfertaServicioRepository ofertaRepository;
     private final ProveedorRepository proveedorRepository;
+    private final Clock clock;
 
     public DisponibilidadServicioService(
             DisponibilidadServicioRepository disponibilidadRepository,
             BloqueoDisponibilidadRepository bloqueoRepository,
             OfertaServicioRepository ofertaRepository,
-            ProveedorRepository proveedorRepository) {
+            ProveedorRepository proveedorRepository,
+            Clock clock) {
         this.disponibilidadRepository = disponibilidadRepository;
         this.bloqueoRepository = bloqueoRepository;
         this.ofertaRepository = ofertaRepository;
         this.proveedorRepository = proveedorRepository;
+        this.clock = clock;
     }
 
     // AÑADIR DISPONIBILIDAD PARA UNA OFERTA DE SERVICIO
@@ -143,7 +147,7 @@ public class DisponibilidadServicioService {
         LocalTime horaFin = diaCompleto ? FIN_DIA : request.getHoraFin();
         validarIntervalo(horaInicio, horaFin);
 
-        if (request.getFecha().isBefore(LocalDate.now())) {
+        if (request.getFecha().isBefore(LocalDate.now(clock))) {
             throw new BusinessException(
                     "FECHA_BLOQUEO_INVALIDA",
                     "No se puede crear un bloqueo para una fecha pasada."

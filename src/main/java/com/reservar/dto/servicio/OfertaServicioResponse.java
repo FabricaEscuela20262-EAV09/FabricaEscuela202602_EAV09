@@ -22,6 +22,8 @@ public class OfertaServicioResponse {
     private String modalidad;
     private String ubicacion;
     private String estado;
+    private Double promedioCalificacion;
+    private long numeroCalificaciones;
     private LocalDateTime fechaCreacion;
     private LocalDateTime fechaActualizacion;
     private List<DisponibilidadResponse> proximasDisponibilidades =

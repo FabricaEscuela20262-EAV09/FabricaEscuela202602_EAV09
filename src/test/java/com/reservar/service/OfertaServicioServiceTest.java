@@ -13,6 +13,7 @@ import com.reservar.repository.CategoriaServicioRepository;
 import com.reservar.repository.DisponibilidadServicioRepository;
 import com.reservar.repository.OfertaServicioRepository;
 import com.reservar.repository.ProveedorRepository;
+import com.reservar.repository.ReservaRepository;
 import com.reservar.repository.TipoServicioRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -25,15 +26,17 @@ import org.springframework.data.domain.Pageable;
 
 import java.util.List;
 import java.util.Optional;
+import java.time.Clock;
+import java.time.Instant;
+import java.time.ZoneId;
 
+import static org.mockito.Mockito.when;
 import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -51,6 +54,13 @@ class OfertaServicioServiceTest {
     private DisponibilidadServicioRepository disponibilidadRepository;
     @Mock
     private BloqueoDisponibilidadRepository bloqueoRepository;
+    @Mock
+    private ReservaRepository reservaRepository;
+    @Mock
+    private Clock clock;
+
+    @Mock
+    private com.reservar.repository.CalificacionRepository calificacionRepository;
 
     @InjectMocks
     private OfertaServicioService service;
@@ -95,9 +105,28 @@ class OfertaServicioServiceTest {
         when(disponibilidadRepository.findByServicioIdServicio(10L)).thenReturn(List.of());
         when(bloqueoRepository.findByServicioIdServicioAndFechaBetween(eq(10L), any(), any()))
                 .thenReturn(List.of());
+        when(reservaRepository.findReservasActivasEnRango(
+                eq(10L),
+                anyList(),
+                any(),
+                any()
+        )).thenReturn(List.of());
+        when(clock.instant()).thenReturn(
+                Instant.parse("2026-11-06T01:00:00Z")
+        );
+        when(clock.getZone()).thenReturn(
+                ZoneId.of("America/Bogota")
+        );
+
+        var resumen = org.mockito.Mockito.mock(com.reservar.repository.CalificacionRepository.Resumen.class);
+        when(resumen.getPromedio()).thenReturn(4.5);
+        when(resumen.getCantidad()).thenReturn(2L);
+        when(calificacionRepository.resumirPorServicio(10L)).thenReturn(resumen);
 
         // Act
         OfertaServicioResponse respuesta = service.obtenerDetalle(10L);
+        assertEquals(4.5, respuesta.getPromedioCalificacion());
+        assertEquals(2L, respuesta.getNumeroCalificaciones());
 
         // Assert
         assertAll(
@@ -107,6 +136,20 @@ class OfertaServicioServiceTest {
                 () -> assertEquals(45, respuesta.getDuracionMinutos()),
                 () -> assertEquals("Villavicencio", respuesta.getUbicacion())
         );
+    }
+
+    @Test
+    void deberiaMostrarCeroCalificacionesYPromedioNuloSinResenas() {
+        when(ofertaRepository.findByIdServicioAndEstado(10L, "ACTIVO"))
+                .thenReturn(Optional.of(crearOferta("ACTIVO", "ACTIVO")));
+        when(clock.instant()).thenReturn(Instant.parse("2026-11-06T01:00:00Z"));
+        when(clock.getZone()).thenReturn(ZoneId.of("America/Bogota"));
+        var resumen = org.mockito.Mockito.mock(com.reservar.repository.CalificacionRepository.Resumen.class);
+        when(resumen.getPromedio()).thenReturn(null);
+        when(calificacionRepository.resumirPorServicio(10L)).thenReturn(resumen);
+        OfertaServicioResponse respuesta = service.obtenerDetalle(10L);
+        assertNull(respuesta.getPromedioCalificacion());
+        assertEquals(0L, respuesta.getNumeroCalificaciones());
     }
 
     @Test
