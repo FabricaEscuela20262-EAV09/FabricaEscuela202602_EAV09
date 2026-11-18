@@ -600,5 +600,73 @@ Estas funcionalidades están implementadas en el código. La evidencia de prueba
 | ADR-11 | Transiciones manuales y auditoría atómicas | Evitar cambios de estado concurrentes o sin trazabilidad | Actualización sin bloqueo; auditoría en otra transacción | Bloqueo pesimista de la fila de reserva y evento de historial en la misma transacción. Costo: operaciones concurrentes sobre la misma reserva se serializan. | Sebastián / Jerónimo | 2026-11-10 |
 | ADR-12 | Finalización periódica dentro del monolito | Completar reservas confirmadas al llegar su fecha de fin | Endpoint manual; planificador externo | `@Scheduled` y `Clock` compartido, sin servicio adicional. Requiere la aplicación activa; la auditoría automática queda pendiente por la ausencia de actor de sistema. | Sebastián | 2026-11-10 |
 | ADR-13 | Una calificación por reserva y resumen por oferta | Permitir editar sin duplicar valoraciones ni alterar el conteo | Múltiples valoraciones por reserva; promedio almacenado y sincronizado | FK única a reserva, bloqueo durante creación/edición y agregación `AVG`/`COUNT` al consultar el detalle. | Luis Fernando | 2026-11-10 |
+| ADR-14 | Entrega continua con Docker Hub y deploy hook de Render | Desplegar la API de forma repetible y trazable a un commit, sin pasos manuales | Despliegue por Git de Render (compila en la plataforma); registro GHCR; despliegue manual | La imagen se construye en GitHub Actions, se publica en Docker Hub (`latest` y SHA del commit) y el mismo workflow dispara el deploy hook de Render. Costo: tres secretos adicionales, el hook funciona como credencial y no hay verificación de salud posterior | Diego | 2026-11-17 |
+| ADR-15 | Publicar la imagen solo tras un análisis exitoso | Evitar desplegar commits que no pasaron compilación, pruebas ni SonarCloud | Construir la imagen en el mismo workflow de análisis; disparar con cada push | El workflow de dockerización se dispara con `workflow_run` solo si «Build y análisis SonarCloud» terminó en `success` sobre `main`, y construye exactamente el commit analizado (`head_sha`). Costo: dos workflows encadenados, con más latencia | Diego | 2026-11-17 |
+
+---
+ 
+## 12. Despliegue y entrega continua
+ 
+El backend se empaqueta como imagen Docker, se publica en Docker Hub y se despliega en Render de forma automática cuando el análisis de calidad termina con éxito en la rama `main`. Se conserva el monolito modular en un único contenedor; Render ejecuta la imagen publicada y no se utiliza Docker Compose ni Kubernetes.
+ 
+| Elemento | Detalle |
+|---|---|
+| Imagen | [`dialva98/fabricaescuela202602_eav09`](https://hub.docker.com/repository/docker/dialva98/fabricaescuela202602_eav09/general) en Docker Hub |
+| Entorno de ejecución | Render, servicio web creado desde la imagen: https://reservar-9l91.onrender.com |
+| Base de datos y correo | Sin cambios: PostgreSQL en Neon y Gmail SMTP |
+| Flujo | `.github/workflows/dockerizacion.yml` («Dockerizacion y publicacion en Docker Hub») |
+ 
+### 12.1 Flujo de entrega continua
+ 
+```mermaid
+flowchart LR
+    Dev["Cambios en la rama main"] --> CI["Workflow<br/>Build y análisis SonarCloud<br/>(build, pruebas, JaCoCo, SonarCloud)"]
+    CI -->|"conclusión = success"| CD["Workflow<br/>Dockerizacion y publicacion<br/>en Docker Hub"]
+    CI -.->|"fallo o cancelación"| Stop["No se construye ni se despliega"]
+    CD -->|"docker push<br/>latest y SHA del commit"| DH[("Docker Hub<br/>dialva98/fabricaescuela202602_eav09")]
+    CD -->|"POST al deploy hook"| R["Render<br/>servicio web desde imagen"]
+    DH -->|"imagen latest"| R
+    R --> API["API Reservar<br/>reservar-9l91.onrender.com"]
+    API -->|"JDBC"| Neon[("Neon PostgreSQL")]
+    API -->|"SMTP"| Gmail["Gmail SMTP"]
+```
+ 
+### 12.2 Pasos del workflow de dockerización
+ 
+| Paso | Qué hace |
+|---|---|
+| Disparador | `workflow_run` del workflow «Build y análisis SonarCloud», evento `completed`, rama `main` |
+| Condición | El job solo corre si `workflow_run.conclusion == 'success'` |
+| Verificación de commit aprobado | `actions/checkout@v4` sobre `workflow_run.head_sha`, es decir, el commit que pasó el análisis y no la punta actual de la rama |
+| Configuración para Docker | `docker/setup-buildx-action@v3` |
+| Logueo en Docker Hub | `docker/login-action@v3` con los secretos `DOCKERHUB_USER` y `DOCKERHUB_TOKEN` |
+| Construir y subir imagen | `docker/build-push-action@v6`, contexto `.` (el `Dockerfile` se toma de la raíz del repositorio), con push de las etiquetas `latest` y el SHA del commit |
+| Desplegar en Render | `curl --fail --silent --show-error -X POST` al deploy hook guardado en `RENDER_DEPLOY_HOOK_URL` |
+ 
+### 12.3 Secretos y variables de entorno
+ 
+| Dónde | Nombre | Uso |
+|---|---|---|
+| GitHub Actions (secret) | `DOCKERHUB_USER`, `DOCKERHUB_TOKEN` | Autenticación para publicar en Docker Hub |
+| GitHub Actions (secret) | `RENDER_DEPLOY_HOOK_URL` | URL del deploy hook de Render |
+| GitHub Actions (secret) | `SONAR_TOKEN` | Análisis SonarCloud |
+| Render (variables de entorno del servicio) | `DB_USER`, `DB_PWORD`, `MAIL_USER`, `MAIL_PWORD` | Las requiere la aplicación, deben estar definidas en el servicio de Render. No forman parte de la imagen |
+ 
+### 12.4 Versionado de imágenes
+ 
+| Etiqueta | Uso |
+|---|---|
+| `latest` | Última versión aprobada; es la que consume Render |
+| `<SHA del commit>` | Etiqueta con el SHA completo del commit analizado. Permite identificar qué código corre en una imagen y volver a una versión anterior desplegando esa etiqueta |
+ 
+### 12.5 Comportamiento ante fallos y límites del despliegue
+ 
+| Situación | Comportamiento |
+|---|---|
+| Falla el análisis (build, pruebas, JaCoCo o SonarCloud) | No se construye ni se publica imagen, y Render conserva la versión anterior |
+| Falla la llamada al deploy hook | `curl --fail` hace fallar el job; la imagen ya está en Docker Hub, pero Render no se redespliega hasta repetir el hook o volver a ejecutar el job |
+| Cambios de esquema | El despliegue no ejecuta DDL (`ddl-auto=validate`). Cualquier cambio de `ESTRUCTURAS.sql` debe aplicarse en Neon antes de desplegar código que dependa de él; de lo contrario la validación de Hibernate puede impedir el arranque |
+| Correo en Render | La aplicación envía correo por `smtp.gmail.com:587`. Desde el 2025-09-26 Render bloquea el tráfico saliente a los puertos SMTP 25, 465 y 587 en los servicios web de plan gratuito; los planes de pago habilitan 465 y 587 según el soporte de Render. Si el servicio corre en plan gratuito, los correos de verificación, recuperación y cambio de correo fallarían por tiempo de espera. La alternativa habitual es un servicio de correo con API HTTP. No se ha verificado en esta documentación el plan del servicio ni el envío de correos en Render |
+| Finalización automática de reservas | La tarea `@Scheduled` (regla 28) solo se ejecuta mientras la instancia está activa. Durante un redespliegue o reinicio no corre y retoma después, procesando las reservas `CONFIRMADA` cuya `fechaFin` ya pasó |
 
 ---
