@@ -209,6 +209,80 @@ class GestionReservaServiceTest {
         verify(reservas).completarFinalizadas(EstadoReserva.CONFIRMADA, EstadoReserva.COMPLETADA, LocalDateTime.now(clock));
     }
 
+    // --- Pruebas agregadas por Calidad (Épica 3) ---
+
+    @Test void motivoEnBlancoSeGuardaComoNulo() {
+        // Arrange
+        when(reservas.findByIdParaActualizar(1L)).thenReturn(Optional.of(reserva));
+
+        // Act
+        service.rechazar(proveedor, 1L, "   ");
+
+        // Assert
+        ArgumentCaptor<HistorialReserva> captor = ArgumentCaptor.forClass(HistorialReserva.class);
+        verify(historial).save(captor.capture());
+        assertNull(captor.getValue().getMotivo());
+    }
+
+    @Test void auditoriaDeReservaInexistente() {
+        // Arrange
+        when(reservas.findById(1L)).thenReturn(Optional.empty());
+
+        // Act + Assert
+        assertEquals("RESERVA_NO_ENCONTRADA", assertThrows(BusinessException.class,
+                () -> service.auditoria(proveedor, 1L)).getCodigo());
+        verifyNoInteractions(historial);
+    }
+
+    @Test void usuarioSinIdentificadorNoEstaAutenticado() {
+        // Arrange
+        Usuario sinId = ServicioFixtures.proveedorActivo();
+        sinId.setIdUsuario(null);
+
+        // Act + Assert
+        assertEquals("USUARIO_NO_AUTENTICADO", assertThrows(BusinessException.class,
+                () -> service.historial(sinId, null, org.springframework.data.domain.PageRequest.of(0, 10))).getCodigo());
+        verifyNoInteractions(reservas);
+    }
+
+    @Test void proveedorAjenoNoPuedeCancelar() {
+        // Arrange: proveedor activo que no es dueño del servicio reservado.
+        reserva.setEstado(EstadoReserva.CONFIRMADA);
+        when(reservas.findByIdParaActualizar(1L)).thenReturn(Optional.of(reserva));
+
+        // Act + Assert
+        assertEquals("RESERVA_NO_PROPIA", assertThrows(BusinessException.class,
+                () -> service.cancelar(ServicioFixtures.proveedorActivo(), 1L, null)).getCodigo());
+        verifyNoInteractions(historial);
+        verify(reservas, never()).save(any());
+    }
+
+    @Test void clienteNoPuedeCancelarComoProveedorUnaReservaDeOtro() {
+        // Arrange: un cliente (rol CLIENTE) que no es el titular de la reserva.
+        reserva.setEstado(EstadoReserva.PENDIENTE);
+        Usuario otroCliente = ServicioFixtures.usuario(Rol.CLIENTE, EstadoUsuario.ACTIVO);
+        when(reservas.findByIdParaActualizar(1L)).thenReturn(Optional.of(reserva));
+
+        // Act + Assert
+        assertEquals("RESERVA_NO_PROPIA", assertThrows(BusinessException.class,
+                () -> service.cancelar(otroCliente, 1L, null)).getCodigo());
+    }
+
+    @Test void proveedorConsultaDetalleDeSuReservaYCompletaFinalizadas() {
+        // Arrange
+        when(reservas.findByIdParaActualizar(1L)).thenReturn(Optional.of(reserva));
+
+        // Act
+        var respuesta = service.detalle(proveedor, 1L);
+
+        // Assert
+        assertAll(() -> assertEquals(1L, respuesta.getIdReserva()),
+                () -> assertEquals(ServicioFixtures.ID_SERVICIO, respuesta.getIdServicio()),
+                () -> assertEquals("Limpieza dental", respuesta.getNombreServicio()),
+                () -> assertEquals(reserva.getFechaFin(), respuesta.getFechaFin()));
+        verify(reservas).completarFinalizadas(EstadoReserva.CONFIRMADA, EstadoReserva.COMPLETADA, LocalDateTime.now(clock));
+    }
+
     @Test void limitaMotivoSinModificarReserva() {
         when(reservas.findByIdParaActualizar(1L)).thenReturn(Optional.of(reserva));
         assertEquals("MOTIVO_INVALIDO", assertThrows(BusinessException.class,

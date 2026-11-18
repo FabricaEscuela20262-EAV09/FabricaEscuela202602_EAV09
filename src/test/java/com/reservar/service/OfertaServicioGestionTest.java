@@ -344,6 +344,23 @@ class OfertaServicioGestionTest {
         }
 
         @Test
+        void noDeberiaEditarUnaOfertaDesactivada() {
+            // Arrange: regresión del bug #19 (HU-07).
+            OfertaServicio existente = ofertaPropia("INACTIVO");
+            when(ofertaRepository.findById(ID_SERVICIO)).thenReturn(Optional.of(existente));
+
+            // Act + Assert
+            assertEquals("OFERTA_NO_DISPONIBLE",
+                    codigo(() -> service.actualizarOferta(usuario, ID_SERVICIO, actualizarRequest())));
+            assertAll(
+                    () -> assertEquals("Limpieza dental", existente.getNombre()),
+                    () -> assertEquals(45, existente.getDuracionMinutos())
+            );
+            verify(ofertaRepository, never()).save(any());
+            verify(tipoServicioRepository, never()).findById(any());
+        }
+
+        @Test
         void deberiaCambiarLaCategoriaCuandoSeIndicaOtroTipoDeServicio() {
             // Arrange
             CategoriaServicio otraCategoria = ServicioFixtures.categoria("ACTIVO");
@@ -494,6 +511,26 @@ class OfertaServicioGestionTest {
                     () -> assertEquals("Limpieza dental", respuesta.getContent().get(0).getNombre()),
                     () -> assertNull(respuesta.getMensaje())
             );
+        }
+
+        @ParameterizedTest(name = "\"{0}\" -> \"{1}\"")
+        @org.junit.jupiter.params.provider.CsvSource(delimiter = '|', value = {
+                "%      | \\%",
+                "_      | \\_",
+                "50%_x  | 50\\%\\_x",
+                "a\\b   | a\\\\b"
+        })
+        void deberiaEscaparLosComodinesDelLikeParaBuscarlosLiteralmente(String texto, String esperado) {
+            // Arrange: regresión del bug #15 (HU-09). La consulta usa ESCAPE '\'.
+            when(ofertaRepository.buscarOfertasActivas(esperado, null, pagina))
+                    .thenReturn(new PageImpl<>(List.of(), pagina, 0));
+
+            // Act
+            BusquedaOfertasResponse respuesta = service.buscarOfertas(texto, null, pagina);
+
+            // Assert
+            assertEquals(0, respuesta.getTotalElements());
+            verify(ofertaRepository).buscarOfertasActivas(esperado, null, pagina);
         }
 
         @ParameterizedTest
