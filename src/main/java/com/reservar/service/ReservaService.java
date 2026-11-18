@@ -21,6 +21,7 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.sql.SQLException;
+import java.time.Clock;
 import java.time.DayOfWeek;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -53,19 +54,22 @@ public class ReservaService {
     private final OfertaServicioRepository ofertaServicioRepository;
     private final DisponibilidadServicioRepository disponibilidadRepository;
     private final BloqueoDisponibilidadRepository bloqueoRepository;
+    private final Clock clock;
 
     public ReservaService(
             ReservaRepository reservaRepository,
             HistorialReservaRepository historialReservaRepository,
             OfertaServicioRepository ofertaServicioRepository,
             DisponibilidadServicioRepository disponibilidadRepository,
-            BloqueoDisponibilidadRepository bloqueoRepository) {
+            BloqueoDisponibilidadRepository bloqueoRepository,
+            Clock clock) {
 
         this.reservaRepository = reservaRepository;
         this.historialReservaRepository = historialReservaRepository;
         this.ofertaServicioRepository = ofertaServicioRepository;
         this.disponibilidadRepository = disponibilidadRepository;
         this.bloqueoRepository = bloqueoRepository;
+        this.clock = clock;
     }
 
     @Transactional
@@ -121,7 +125,7 @@ public class ReservaService {
             historial.setActor(usuario);
             historial.setEstadoAnterior(null);
             historial.setEstadoNuevo(EstadoReserva.PENDIENTE);
-            historial.setFechaCambio(LocalDateTime.now());
+            historial.setFechaCambio(LocalDateTime.now(clock));
             historial.setMotivo("Creación de reserva");
 
             historialReservaRepository.save(historial);
@@ -198,7 +202,7 @@ public class ReservaService {
 
     private void validarFechaFutura(LocalDateTime fechaInicio) {
 
-        if (fechaInicio == null || !fechaInicio.isAfter(LocalDateTime.now())) {
+        if (fechaInicio == null || !fechaInicio.isAfter(LocalDateTime.now(clock))) {
             throw new BusinessException(
                     "FECHA_RESERVA_INVALIDA",
                     "La fecha y hora de inicio deben ser futuras."

@@ -118,4 +118,72 @@ class CalificacionServiceTest {
         assertEquals("RESERVA_NO_ENCONTRADA", assertThrows(BusinessException.class,
                 () -> service.crear(cliente, 1L, request)).getCodigo());
     }
+
+    // --- Pruebas agregadas por Calidad (Épica 3) ---
+
+    @Test void usuarioSinIdentificadorNoEstaAutenticado() {
+        // Arrange
+        cliente.setIdUsuario(null);
+
+        // Act + Assert
+        assertEquals("USUARIO_NO_AUTENTICADO", assertThrows(BusinessException.class,
+                () -> service.editar(cliente, 1L, request)).getCodigo());
+        verifyNoInteractions(reservas, calificaciones);
+    }
+
+    @Test void solicitudSinEstrellasEsInvalida() {
+        // Arrange
+        encontrada();
+        request.setEstrellas(null);
+
+        // Act + Assert
+        assertEquals("ESTRELLAS_INVALIDAS", assertThrows(BusinessException.class,
+                () -> service.crear(cliente, 1L, request)).getCodigo());
+        assertEquals("ESTRELLAS_INVALIDAS", assertThrows(BusinessException.class,
+                () -> service.crear(cliente, 1L, null)).getCodigo());
+        verify(calificaciones, never()).saveAndFlush(any());
+    }
+
+    @ParameterizedTest
+    @org.junit.jupiter.params.provider.NullAndEmptySource
+    @ValueSource(strings = {"   "})
+    void comentarioVacioSeGuardaComoNulo(String comentario) {
+        // Arrange
+        encontrada();
+        request.setComentario(comentario);
+        when(calificaciones.saveAndFlush(any())).thenAnswer(i -> i.getArgument(0));
+
+        // Act
+        var respuesta = service.crear(cliente, 1L, request);
+
+        // Assert
+        assertNull(respuesta.comentario());
+        assertEquals((short) 5, respuesta.estrellas());
+    }
+
+    @Test void comentarioDe500CaracteresEsElLimiteValido() {
+        // Arrange
+        encontrada();
+        request.setComentario("x".repeat(500));
+        when(calificaciones.saveAndFlush(any())).thenAnswer(i -> i.getArgument(0));
+
+        // Act
+        var respuesta = service.crear(cliente, 1L, request);
+
+        // Assert
+        assertEquals(500, respuesta.comentario().length());
+    }
+
+    @Test void confirmadaQueNoHaTerminadoNoSeCalifica() {
+        // Arrange
+        encontrada();
+        reserva.setEstado(EstadoReserva.CONFIRMADA);
+        reserva.setFechaFin(LocalDateTime.now(clock).plusMinutes(30));
+
+        // Act + Assert
+        assertEquals("ESTADO_RESERVA_INVALIDO", assertThrows(BusinessException.class,
+                () -> service.crear(cliente, 1L, request)).getCodigo());
+        verify(reservas, never()).save(any());
+        verifyNoInteractions(calificaciones);
+    }
 }

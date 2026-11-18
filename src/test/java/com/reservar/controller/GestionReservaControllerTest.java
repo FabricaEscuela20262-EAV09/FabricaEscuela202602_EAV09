@@ -126,4 +126,54 @@ class GestionReservaControllerTest {
         mvc.perform(patch("/api/reservas/1/confirmar")).andExpect(status().isUnauthorized());
         verifyNoInteractions(service);
     }
+
+    // --- Pruebas agregadas por Calidad (Épica 3) ---
+
+    @Test void detallePropioDevuelve200() throws Exception {
+        // Arrange (HU-14)
+        ReservaResponse response = new ReservaResponse();
+        response.setIdReserva(1L);
+        response.setEstado(EstadoReserva.CONFIRMADA);
+        when(service.detalle(proveedor, 1L)).thenReturn(response);
+
+        // Act + Assert
+        mvc.perform(get("/api/reservas/1")).andExpect(status().isOk())
+                .andExpect(jsonPath("$.idReserva").value(1))
+                .andExpect(jsonPath("$.estado").value("CONFIRMADA"));
+    }
+
+    @Test void cancelaConMotivo() throws Exception {
+        // Act + Assert (HU-13)
+        mvc.perform(patch("/api/reservas/1/cancelar").contentType(MediaType.APPLICATION_JSON)
+                .content("{\"motivo\":\"Viaje\"}")).andExpect(status().isOk());
+        verify(service).cancelar(proveedor, 1L, "Viaje");
+    }
+
+    @Test void idNoNumericoDevuelveErrorResponse() throws Exception {
+        // Act + Assert: mismo formato que la corrección del bug #22 en ofertas.
+        mvc.perform(get("/api/reservas/abc/historial")).andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.codigo").value("PARAMETRO_INVALIDO"));
+        verifyNoInteractions(service);
+    }
+
+    @Test void principalQueNoEsUsuarioEs401() throws Exception {
+        // Arrange
+        SecurityContextHolder.getContext().setAuthentication(
+                new org.springframework.security.authentication.AnonymousAuthenticationToken("clave", "anonimo",
+                        org.springframework.security.core.authority.AuthorityUtils.createAuthorityList("ROLE_ANONYMOUS")));
+
+        // Act + Assert
+        mvc.perform(get("/api/reservas/1")).andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.codigo").value("USUARIO_NO_AUTENTICADO"));
+        verifyNoInteractions(service);
+    }
+
+    @Test void autenticacionNoValidadaEs401() throws Exception {
+        // Arrange
+        SecurityContextHolder.getContext().setAuthentication(new UsernamePasswordAuthenticationToken(proveedor, null));
+
+        // Act + Assert
+        mvc.perform(get("/api/reservas/1/historial")).andExpect(status().isUnauthorized());
+        verifyNoInteractions(service);
+    }
 }

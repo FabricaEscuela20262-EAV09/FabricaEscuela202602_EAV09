@@ -70,4 +70,39 @@ class CalificacionControllerTest {
         mvc.perform(post(url).contentType(MediaType.APPLICATION_JSON).content("{\"estrellas\":5}"))
                 .andExpect(status().isUnauthorized());
     }
+
+    // --- Pruebas agregadas por Calidad (Épica 3) ---
+
+    @Test void principalQueNoEsUsuarioEs401() throws Exception {
+        // Arrange
+        SecurityContextHolder.getContext().setAuthentication(
+                new org.springframework.security.authentication.AnonymousAuthenticationToken("clave", "anonimo",
+                        org.springframework.security.core.authority.AuthorityUtils.createAuthorityList("ROLE_ANONYMOUS")));
+
+        // Act + Assert
+        mvc.perform(put(url).contentType(MediaType.APPLICATION_JSON).content("{\"estrellas\":4}"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.codigo").value("USUARIO_NO_AUTENTICADO"));
+        verifyNoInteractions(service);
+    }
+
+    @Test void autenticacionNoValidadaEs401() throws Exception {
+        // Arrange
+        SecurityContextHolder.getContext().setAuthentication(new UsernamePasswordAuthenticationToken(cliente, null));
+
+        // Act + Assert
+        mvc.perform(post(url).contentType(MediaType.APPLICATION_JSON).content("{\"estrellas\":4}"))
+                .andExpect(status().isUnauthorized());
+        verifyNoInteractions(service);
+    }
+
+    @Test void editarSinCalificacionPreviaEs404() throws Exception {
+        // Arrange
+        when(service.editar(eq(cliente), eq(1L), any()))
+                .thenThrow(new BusinessException("CALIFICACION_NO_ENCONTRADA", "No existe"));
+
+        // Act + Assert
+        mvc.perform(put(url).contentType(MediaType.APPLICATION_JSON).content("{\"estrellas\":4}"))
+                .andExpect(status().isNotFound());
+    }
 }
