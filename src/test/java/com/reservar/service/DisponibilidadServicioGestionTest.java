@@ -432,7 +432,7 @@ class DisponibilidadServicioGestionTest {
     @Nested
     class CrearBloqueo {
 
-        private final LocalDate futura = LocalDate.now().plusDays(5);
+        private final LocalDate futura = LocalDate.now(CLOCK).plusDays(5);
 
         @Test
         void deberiaPermitirBloquearHoy() {
@@ -441,10 +441,10 @@ class DisponibilidadServicioGestionTest {
 
             // Act
             DisponibilidadResponse respuesta = service.crearBloqueo(
-                    usuario, ID_SERVICIO, bloqueoRequest(LocalDate.now(), null, null, null));
+                    usuario, ID_SERVICIO, bloqueoRequest(LocalDate.now(CLOCK), null, null, null));
 
             // Assert
-            assertEquals(LocalDate.now(), respuesta.getFecha());
+            assertEquals(LocalDate.now(CLOCK), respuesta.getFecha());
         }
 
         @Test
@@ -469,7 +469,7 @@ class DisponibilidadServicioGestionTest {
         void deberiaRechazarFechasPasadas() {
             // Act + Assert
             assertEquals("FECHA_BLOQUEO_INVALIDA", codigo(() -> service.crearBloqueo(
-                    usuario, ID_SERVICIO, bloqueoRequest(LocalDate.now().minusDays(1), null, null, null))));
+                    usuario, ID_SERVICIO, bloqueoRequest(LocalDate.now(CLOCK).minusDays(1), null, null, null))));
             verify(bloqueoRepository, never()).save(any());
         }
 
@@ -635,7 +635,7 @@ class DisponibilidadServicioGestionTest {
         void deberiaEliminarUnBloqueoPropio() {
             // Arrange
             BloqueoDisponibilidad existente = bloqueoExistente(
-                    8L, oferta, LocalDate.now().plusDays(2), LocalTime.MIN, LocalTime.of(23, 59, 59));
+                    8L, oferta, LocalDate.now(CLOCK).plusDays(2), LocalTime.MIN, LocalTime.of(23, 59, 59));
             when(bloqueoRepository.findById(8L)).thenReturn(Optional.of(existente));
 
             // Act
@@ -660,7 +660,7 @@ class DisponibilidadServicioGestionTest {
             OfertaServicio otraOferta = ServicioFixtures.oferta(proveedor, ServicioFixtures.tipoActivo(), "ACTIVO");
             otraOferta.setIdServicio(11L);
             BloqueoDisponibilidad existente = bloqueoExistente(
-                    8L, otraOferta, LocalDate.now(), LocalTime.MIN, LocalTime.of(23, 59, 59));
+                    8L, otraOferta, LocalDate.now(CLOCK), LocalTime.MIN, LocalTime.of(23, 59, 59));
             when(bloqueoRepository.findById(8L)).thenReturn(Optional.of(existente));
 
             // Act + Assert

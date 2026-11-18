@@ -32,7 +32,22 @@ class GlobalExceptionHandlerEstadosHttpTest {
             "CATEGORIA_NO_ENCONTRADA,400",
             "DISPONIBILIDAD_TRASLAPADA,400",
             "INTERVALO_HORARIO_INVALIDO,400",
-            "BLOQUEO_TRASLAPADO,400"
+            "BLOQUEO_TRASLAPADO,400",
+            // Épica 3 (HU-11 a HU-15)
+            "CUENTA_NO_VERIFICADA,403",
+            "RESERVA_NO_PROPIA,403",
+            "RESERVA_NO_ENCONTRADA,404",
+            "CALIFICACION_NO_ENCONTRADA,404",
+            "CALIFICACION_EXISTENTE,409",
+            "HORARIO_NO_DISPONIBLE,409",
+            "HORARIO_BLOQUEADO,409",
+            "FUERA_DE_DISPONIBILIDAD,409",
+            "RESERVA_FUERA_DE_HORARIO,409",
+            "ESTADO_RESERVA_INVALIDO,400",
+            "FECHA_RESERVA_INVALIDA,400",
+            "ESTRELLAS_INVALIDAS,400",
+            "MOTIVO_INVALIDO,400",
+            "AUTORRESERVA_NO_PERMITIDA,400"
     })
     void deberiaMapearElCodigoDeNegocioAlEstadoHttpEsperado(String codigo, int estadoEsperado) {
         // Arrange

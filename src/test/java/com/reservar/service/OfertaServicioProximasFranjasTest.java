@@ -420,4 +420,81 @@ class OfertaServicioProximasFranjasTest {
         // Assert
         assertEquals(1, franjas.size());
     }
+
+    private static com.reservar.entity.Reserva reserva(java.time.LocalDateTime inicio, java.time.LocalDateTime fin) {
+        com.reservar.entity.Reserva reserva = new com.reservar.entity.Reserva();
+        reserva.setFechaInicio(inicio);
+        reserva.setFechaFin(fin);
+        return reserva;
+    }
+
+    @Test
+    void deberiaDescontarLasReservasPendientesYConfirmadasDeLaVentanaDeSieteDias() {
+        // Arrange: HU-11 ocupa 10:00-10:45 el día 1 y todo el horario del día 2.
+        LocalDate dia1 = hoy.plusDays(1);
+        LocalDate dia2 = hoy.plusDays(2);
+        configurar(mismoHorarioTodosLosDias(LocalTime.of(9, 0), LocalTime.of(12, 0)), List.of());
+        when(reservaRepository.findReservasActivasEnRango(
+                ID_SERVICIO,
+                List.of(com.reservar.entity.enums.EstadoReserva.PENDIENTE,
+                        com.reservar.entity.enums.EstadoReserva.CONFIRMADA),
+                hoy.atStartOfDay(),
+                hoy.plusDays(7).atStartOfDay()))
+                .thenReturn(List.of(
+                        reserva(dia1.atTime(10, 0), dia1.atTime(10, 45)),
+                        reserva(dia2.atTime(9, 0), dia2.atTime(12, 0))));
+
+        // Act
+        OfertaServicioResponse detalle = service.obtenerDetalle(ID_SERVICIO);
+
+        // Assert
+        List<DisponibilidadResponse> franjasDia1 = franjasDeFecha(detalle, dia1);
+        assertAll(
+                () -> assertEquals(2, franjasDia1.size()),
+                () -> assertEquals(LocalTime.of(9, 0), franjasDia1.get(0).getHoraInicio()),
+                () -> assertEquals(LocalTime.of(10, 0), franjasDia1.get(0).getHoraFin()),
+                () -> assertEquals(LocalTime.of(10, 45), franjasDia1.get(1).getHoraInicio()),
+                () -> assertEquals(LocalTime.of(12, 0), franjasDia1.get(1).getHoraFin()),
+                () -> assertTrue(franjasDeFecha(detalle, dia2).isEmpty()),
+                () -> assertEquals(1, franjasDeFecha(detalle, hoy.plusDays(3)).size())
+        );
+    }
+
+    @Test
+    void deberiaDescartarElHuecoEntreReservasDondeNoCabeElServicio() {
+        // Arrange: entre 10:00 y 10:30 quedan 30 min, menos que los 45 del servicio (bug #20).
+        LocalDate dia1 = hoy.plusDays(1);
+        configurar(List.of(horario(nombreDia(dia1), LocalTime.of(9, 0), LocalTime.of(12, 0))), List.of());
+        when(reservaRepository.findReservasActivasEnRango(eq(ID_SERVICIO), any(), any(), any()))
+                .thenReturn(List.of(
+                        reserva(dia1.atTime(9, 0), dia1.atTime(10, 0)),
+                        reserva(dia1.atTime(10, 30), dia1.atTime(11, 15))));
+
+        // Act
+        List<DisponibilidadResponse> franjas = franjasDeFecha(service.obtenerDetalle(ID_SERVICIO), dia1);
+
+        // Assert
+        assertAll(
+                () -> assertEquals(1, franjas.size()),
+                () -> assertEquals(LocalTime.of(11, 15), franjas.get(0).getHoraInicio()),
+                () -> assertEquals(LocalTime.of(12, 0), franjas.get(0).getHoraFin())
+        );
+    }
+
+    @Test
+    void deberiaIncluirElPromedioYLaCantidadDeCalificacionesEnElDetalle() {
+        // Arrange: HU-15
+        configurar(List.of(), List.of());
+        when(resumen.getPromedio()).thenReturn(4.5);
+        when(resumen.getCantidad()).thenReturn(2L);
+
+        // Act
+        OfertaServicioResponse detalle = service.obtenerDetalle(ID_SERVICIO);
+
+        // Assert
+        assertAll(
+                () -> assertEquals(4.5, detalle.getPromedioCalificacion()),
+                () -> assertEquals(2L, detalle.getNumeroCalificaciones())
+        );
+    }
 }
