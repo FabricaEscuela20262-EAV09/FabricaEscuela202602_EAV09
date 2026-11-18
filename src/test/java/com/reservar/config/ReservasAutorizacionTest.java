@@ -27,6 +27,7 @@ class ReservasAutorizacionTest {
 
     @Test void todasLasRutasExigenSesion() throws Exception {
         mvc.perform(get("/api/reservas")).andExpect(status().isUnauthorized());
+        mvc.perform(get("/api/reservas/historial")).andExpect(status().isUnauthorized());
         mvc.perform(get("/api/reservas/1")).andExpect(status().isUnauthorized());
         mvc.perform(get("/api/reservas/1/historial")).andExpect(status().isUnauthorized());
         for (String accion : new String[]{"confirmar", "rechazar", "cancelar"}) {

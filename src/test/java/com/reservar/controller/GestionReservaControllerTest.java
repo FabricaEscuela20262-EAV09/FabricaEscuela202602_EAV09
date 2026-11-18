@@ -85,6 +85,29 @@ class GestionReservaControllerTest {
         mvc.perform(get("/api/reservas?estado=CANCELADA&page=0&size=5"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.content").isArray());
     }
+    @Test void historialEnRutaAzureConservaFiltroPaginacionYOrden() throws Exception {
+        var esperado = org.springframework.data.domain.PageRequest.of(1, 5,
+                org.springframework.data.domain.Sort.by(org.springframework.data.domain.Sort.Direction.DESC, "fechaInicio"));
+        when(service.historial(proveedor, EstadoReserva.CONFIRMADA, esperado))
+                .thenReturn(new org.springframework.data.domain.PageImpl<>(List.of(), esperado, 0));
+        mvc.perform(get("/api/reservas/historial?estado=CONFIRMADA&page=1&size=5"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.content").isArray());
+        verify(service).historial(proveedor, EstadoReserva.CONFIRMADA, esperado);
+        verify(service, never()).detalle(any(), anyLong());
+    }
+    @Test void historialEnRutaAzureSinFiltro() throws Exception {
+        when(service.historial(eq(proveedor), isNull(), any()))
+                .thenReturn(new org.springframework.data.domain.PageImpl<>(List.of(),
+                        org.springframework.data.domain.PageRequest.of(0, 10), 0));
+        mvc.perform(get("/api/reservas/historial")).andExpect(status().isOk())
+                .andExpect(jsonPath("$.content").isArray());
+        verify(service).historial(eq(proveedor), isNull(), any());
+    }
+    @Test void historialEnRutaAzureRechazaEstadoInvalido() throws Exception {
+        mvc.perform(get("/api/reservas/historial?estado=INVENTADO"))
+                .andExpect(status().isBadRequest());
+        verifyNoInteractions(service);
+    }
     @Test void estadoFiltroInvalido() throws Exception {
         mvc.perform(get("/api/reservas?estado=INVENTADO")).andExpect(status().isBadRequest());
         verifyNoInteractions(service);
