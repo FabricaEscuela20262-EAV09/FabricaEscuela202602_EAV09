@@ -1,3 +1,4 @@
+
 name: Dockerizacion y publicacion en Docker Hub
 
 on:
@@ -36,3 +37,10 @@ jobs:
           tags: |
             dialva98/fabricaescuela202602_eav09:latest
             dialva98/fabricaescuela202602_eav09:${{ github.event.workflow_run.head_sha }}
+
+      - name: Desplegar nueva imagen en Render
+        env:
+          RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+        run: |
+          curl --fail --silent --show-error \
+            -X POST "$RENDER_DEPLOY_HOOK_URL"
