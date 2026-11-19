@@ -3,11 +3,9 @@
 **Proyecto:** Reservar. Plataforma de reservas (Fábrica Escuela EAV09).  
 **Alcance de este documento:** Épica 1 (Sprint 1), Épica 2 (Sprint 2) y Épica 3 (Sprint 3), con la implementación de HU-11 a HU-15: creación, gestión, historial de reservas y calificaciones.<br/>
 **Stack:** Spring Boot 4.1 (Java 17), PostgreSQL (Neon), Spring Security, Spring Data JPA / Hibernate.  
-**Última actualización:** 2026-11-10 (documentación de HU-11 a HU-15 y alcance técnico del Sprint 3).
+**Última actualización:** 2026-11-19 (documentación de flujo de despliegue y entrega continua).
 
-> Este documento no cubre frontend (no hay requerimiento de frontend en el proyecto) ni estrategia de despliegue. Se enfoca en la arquitectura y funcionalidades implementadas en el backend.
->
-> La documentación conserva los componentes desarrollados en los Sprints 1 y 2 e incorpora HU-11 a HU-15 del Sprint 3, sin cambiar la arquitectura en capas ni sustituir las funcionalidades anteriores.
+> Este documento no cubre frontend (no hay requerimiento de frontend en el proyecto). Se enfoca en la arquitectura y funcionalidades implementadas en el backend.
 
 ---
 
