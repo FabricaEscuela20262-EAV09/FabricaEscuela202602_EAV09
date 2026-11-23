@@ -58,4 +58,33 @@ class TokenHasherTest {
         // Act + Assert
         assertThrows(NullPointerException.class, () -> TokenHasher.hash(token));
     }
+
+    @Test
+    void deberiaEnvolverLaFaltaDelAlgoritmoEnUnaExcepcionDeEstado() {
+        // Arrange: un JVM sin SHA-256 (caso imposible en la práctica, pero el contrato debe ser claro).
+        try (org.mockito.MockedStatic<java.security.MessageDigest> digest =
+                     org.mockito.Mockito.mockStatic(java.security.MessageDigest.class)) {
+            java.security.NoSuchAlgorithmException causa = new java.security.NoSuchAlgorithmException("SHA-256");
+            digest.when(() -> java.security.MessageDigest.getInstance("SHA-256")).thenThrow(causa);
+
+            // Act
+            IllegalStateException ex = assertThrows(IllegalStateException.class, () -> TokenHasher.hash("abc"));
+
+            // Assert
+            assertEquals(causa, ex.getCause());
+        }
+    }
+
+    @Test
+    void noDeberiaPoderInstanciarseLaClaseUtilitaria() throws Exception {
+        // Arrange
+        java.lang.reflect.Constructor<TokenHasher> constructor = TokenHasher.class.getDeclaredConstructor();
+
+        // Act
+        constructor.setAccessible(true);
+
+        // Assert
+        assertEquals(true, java.lang.reflect.Modifier.isPrivate(constructor.getModifiers()));
+        org.junit.jupiter.api.Assertions.assertNotNull(constructor.newInstance());
+    }
 }
