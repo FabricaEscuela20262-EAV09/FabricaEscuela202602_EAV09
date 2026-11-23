@@ -439,8 +439,8 @@ class RepositoriosPostgresIntegracionTest {
         }
 
         @Test
-        void deberiaEncontrarElCorreoSinDistinguirMayusculasGraciasACitext() {
-            // Act + Assert: HU-02 inicio de sesión y HU-01 correo único.
+        void deberiaEncontrarElCorreoSinDistinguirMayusculas() {
+            // Act + Assert: HU-02 inicio de sesión y HU-01 correo único. Antes fallaba: citext = varchar se resuelve como text = text.
             assertAll(
                     () -> assertEquals(cliente.getIdUsuario(),
                             usuarioRepository.findByCorreo("CLIENTE@Correo.COM").orElseThrow().getIdUsuario()),
