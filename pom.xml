@@ -37,6 +37,9 @@
 		<sonar.projectName>Reservar</sonar.projectName>
 		<sonar.coverage.jacoco.xmlReportPaths>${project.build.directory}/site/jacoco/jacoco.xml</sonar.coverage.jacoco.xmlReportPaths>
 		<sonar.coverage.exclusions>**/ReservarApplication.java</sonar.coverage.exclusions>
+		<!-- Además del código Java, Sonar analiza el Dockerfile (reglas docker:*), la configuración
+		     (detección de secretos en application.properties) y los workflows de CI (githubactions:*). -->
+		<sonar.sources>pom.xml,src/main/java,src/main/resources,Dockerfile,.github</sonar.sources>
 	</properties>
 	<dependencies>
 		<dependency>
@@ -99,6 +102,17 @@
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-webmvc-test</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<!-- Pruebas de integración de repositorios contra PostgreSQL real (S1-H3). Versión gestionada por Spring Boot. -->
+		<dependency>
+			<groupId>org.testcontainers</groupId>
+			<artifactId>testcontainers-postgresql</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.testcontainers</groupId>
+			<artifactId>testcontainers-junit-jupiter</artifactId>
 			<scope>test</scope>
 		</dependency>
 	</dependencies>
