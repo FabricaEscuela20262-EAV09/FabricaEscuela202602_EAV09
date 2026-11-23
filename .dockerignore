@@ -4,4 +4,4 @@
 .vscode
 target
 *.log
-.envS
+.env

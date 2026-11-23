@@ -599,7 +599,7 @@ Estas funcionalidades están implementadas en el código. La evidencia de prueba
 | ADR-12 | Finalización periódica dentro del monolito | Completar reservas confirmadas al llegar su fecha de fin | Endpoint manual; planificador externo | `@Scheduled` y `Clock` compartido, sin servicio adicional. Requiere la aplicación activa; la auditoría automática queda pendiente por la ausencia de actor de sistema. | Sebastián | 2026-11-10 |
 | ADR-13 | Una calificación por reserva y resumen por oferta | Permitir editar sin duplicar valoraciones ni alterar el conteo | Múltiples valoraciones por reserva; promedio almacenado y sincronizado | FK única a reserva, bloqueo durante creación/edición y agregación `AVG`/`COUNT` al consultar el detalle. | Luis Fernando | 2026-11-10 |
 | ADR-14 | Entrega continua con Docker Hub y deploy hook de Render | Desplegar la API de forma repetible y trazable a un commit, sin pasos manuales | Despliegue por Git de Render (compila en la plataforma); registro GHCR; despliegue manual | La imagen se construye en GitHub Actions, se publica en Docker Hub (`latest` y SHA del commit) y el mismo workflow dispara el deploy hook de Render. Costo: tres secretos adicionales, el hook funciona como credencial y no hay verificación de salud posterior | Diego | 2026-11-17 |
-| ADR-15 | Publicar la imagen solo tras un análisis exitoso | Evitar desplegar commits que no pasaron compilación, pruebas ni SonarCloud | Construir la imagen en el mismo workflow de análisis; disparar con cada push | El workflow de dockerización se dispara con `workflow_run` solo si «Build y análisis SonarCloud» terminó en `success` sobre `main`, y construye exactamente el commit analizado (`head_sha`). Costo: dos workflows encadenados, con más latencia | Diego | 2026-11-17 |
+| ADR-15 | Publicar la imagen solo tras un análisis exitoso | Evitar desplegar commits que no pasaron compilación, pruebas ni SonarCloud | Workflow separado con `workflow_run` (versión inicial del 2026-11-17); disparar con cada push | **Revisado el 2026-11-23 por Calidad.** La publicación es el job `docker` dentro de «Build y análisis SonarCloud», con `needs: build` y condición `push` a `main`, y construye exactamente el commit analizado (`github.sha`). El análisis espera el Quality Gate (`sonar.qualitygate.wait=true`), así que un gate en rojo también bloquea el despliegue. Se descartó `workflow_run`: corre con secretos y su filtro `branches: main` compara el nombre de la rama de origen, de modo que un PR desde un fork con una rama llamada `main` podía construir y desplegar código no confiable (SonarCloud `githubactions:S7631`). Costo: el despliegue queda en el mismo archivo que la CI | Diego / Calidad | 2026-11-23 |
 
 ---
  
@@ -612,14 +612,14 @@ El backend se empaqueta como imagen Docker, se publica en Docker Hub y se despli
 | Imagen | [`dialva98/fabricaescuela202602_eav09`](https://hub.docker.com/repository/docker/dialva98/fabricaescuela202602_eav09/general) en Docker Hub |
 | Entorno de ejecución | Render, servicio web creado desde la imagen: https://reservar-9l91.onrender.com |
 | Base de datos y correo | Sin cambios: PostgreSQL en Neon y Gmail SMTP |
-| Flujo | `.github/workflows/dockerizacion.yml` («Dockerizacion y publicacion en Docker Hub») |
+| Flujo | Job `docker` («Dockerizacion y publicacion en Docker Hub») de `.github/workflows/build.yml` |
  
 ### 12.1 Flujo de entrega continua
  
 ```mermaid
 flowchart LR
     Dev["Cambios en la rama main"] --> CI["Workflow<br/>Build y análisis SonarCloud<br/>(build, pruebas, JaCoCo, SonarCloud)"]
-    CI -->|"conclusión = success"| CD["Workflow<br/>Dockerizacion y publicacion<br/>en Docker Hub"]
+    CI -->|"build y Quality Gate en verde<br/>(solo push a main)"| CD["Job docker<br/>Dockerizacion y publicacion<br/>en Docker Hub"]
     CI -.->|"fallo o cancelación"| Stop["No se construye ni se despliega"]
     CD -->|"docker push<br/>latest y SHA del commit"| DH[("Docker Hub<br/>dialva98/fabricaescuela202602_eav09")]
     CD -->|"POST al deploy hook"| R["Render<br/>servicio web desde imagen"]
@@ -629,17 +629,19 @@ flowchart LR
     API -->|"SMTP"| Gmail["Gmail SMTP"]
 ```
  
-### 12.2 Pasos del workflow de dockerización
+### 12.2 Pasos del job de dockerización
  
 | Paso | Qué hace |
 |---|---|
-| Disparador | `workflow_run` del workflow «Build y análisis SonarCloud», evento `completed`, rama `main` |
-| Condición | El job solo corre si `workflow_run.conclusion == 'success'` |
-| Verificación de commit aprobado | `actions/checkout@v4` sobre `workflow_run.head_sha`, es decir, el commit que pasó el análisis y no la punta actual de la rama |
-| Configuración para Docker | `docker/setup-buildx-action@v3` |
-| Logueo en Docker Hub | `docker/login-action@v3` con los secretos `DOCKERHUB_USER` y `DOCKERHUB_TOKEN` |
-| Construir y subir imagen | `docker/build-push-action@v6`, contexto `.` (el `Dockerfile` se toma de la raíz del repositorio), con push de las etiquetas `latest` y el SHA del commit |
+| Disparador | Job `docker` de «Build y análisis SonarCloud», con `needs: build` |
+| Condición | `github.event_name == 'push' && github.ref == 'refs/heads/main'`: nunca corre en pull requests, así que el código de un fork no llega a un contexto con secretos |
+| Verificación de commit aprobado | `actions/checkout` (v4.4.0) sobre `github.sha`, el mismo commit que pasó pruebas, JaCoCo y el Quality Gate |
+| Configuración para Docker | `docker/setup-buildx-action` (v3.12.0) |
+| Logueo en Docker Hub | `docker/login-action` (v3.7.0) con los secretos `DOCKERHUB_USER` y `DOCKERHUB_TOKEN` |
+| Construir y subir imagen | `docker/build-push-action` (v6.19.2), contexto `.` (el `Dockerfile` se toma de la raíz del repositorio), con push de las etiquetas `latest` y el SHA del commit |
 | Desplegar en Render | `curl --fail --silent --show-error -X POST` al deploy hook guardado en `RENDER_DEPLOY_HOOK_URL` |
+
+Todas las actions están fijadas al SHA completo de su commit, con la versión en un comentario (SonarCloud `githubactions:S7637`). Así una etiqueta movida o comprometida no cambia lo que se ejecuta con los secretos del repositorio. Para actualizar una action se reemplaza el SHA por el de la nueva versión.
  
 ### 12.3 Secretos y variables de entorno
  
@@ -661,7 +663,7 @@ flowchart LR
  
 | Situación | Comportamiento |
 |---|---|
-| Falla el análisis (build, pruebas, JaCoCo o SonarCloud) | No se construye ni se publica imagen, y Render conserva la versión anterior |
+| Falla el análisis (build, pruebas, JaCoCo o SonarCloud) o el Quality Gate queda en rojo | No se construye ni se publica imagen, y Render conserva la versión anterior |
 | Falla la llamada al deploy hook | `curl --fail` hace fallar el job; la imagen ya está en Docker Hub, pero Render no se redespliega hasta repetir el hook o volver a ejecutar el job |
 | Cambios de esquema | El despliegue no ejecuta DDL (`ddl-auto=validate`). Cualquier cambio de `ESTRUCTURAS.sql` debe aplicarse en Neon antes de desplegar código que dependa de él; de lo contrario la validación de Hibernate puede impedir el arranque |
 | Correo en Render | La aplicación envía correo por `smtp.gmail.com:587`. Desde el 2025-09-26 Render bloquea el tráfico saliente a los puertos SMTP 25, 465 y 587 en los servicios web de plan gratuito; los planes de pago habilitan 465 y 587 según el soporte de Render. Si el servicio corre en plan gratuito, los correos de verificación, recuperación y cambio de correo fallarían por tiempo de espera.|
